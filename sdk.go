@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	reventv1 "github.com/manuelarte/revent-sdk-go/internal/api/gRPC/revent/v1"
 	"github.com/manuelarte/revent-sdk-go/revent"
@@ -18,7 +19,7 @@ func OpenSession(ctx context.Context, state *State) error {
 
 	gRPCClientConn, err := grpc.NewClient(
 		state.cfg.GetGRPCAddress(),
-		// grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		// Inject tracing information for R-Event
 		// grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 	)
@@ -28,9 +29,13 @@ func OpenSession(ctx context.Context, state *State) error {
 
 	cc := reventv1.NewControlClient(gRPCClientConn)
 
-	_, err = cc.OpenSession(ctx)
+	stream, err := cc.OpenSession(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to open session: %w", err)
+	}
+
+	if err := state.Init(ctx, stream); err != nil {
+		return fmt.Errorf("session ended with error: %w", err)
 	}
 
 	return nil

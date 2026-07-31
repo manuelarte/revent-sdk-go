@@ -27,7 +27,7 @@ func DefaultConfig() Config {
 
 	return Config{
 		ClientID:       ClientID(hostname),
-		ServerURL:      "http://localhost",
+		ServerURL:      "localhost",
 		ServerGRPCPort: 10000,
 		ServerRestPort: 10001,
 	}

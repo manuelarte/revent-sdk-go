@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
 	reventsdkgo "github.com/manuelarte/revent-sdk-go"
@@ -17,22 +16,20 @@ func main() {
 
 func run(logger *slog.Logger) error {
 	ctx := context.Background()
-	clientConfig := reventsdkgo.Config{
-		ClientID:       reventsdkgo.ClientID("hello-world"),
-		ServerURL:      "http://localhost",
-		ServerGRPCPort: 10000,
-		ServerRestPort: 10001,
-	}
-	s := reventsdkgo.NewState(clientConfig)
-	logger.InfoContext(ctx, "Starting Query app", slog.Any("clientID", clientConfig.ClientID))
-
-	fmt.Printf("Hello World! %+#v", clientConfig)
+	cfg := reventsdkgo.DefaultConfig()
+	s := reventsdkgo.NewState(cfg)
+	clientID := cfg.ClientID
+	logger.InfoContext(ctx, "Starting Query app", slog.Any("clientID", clientID))
 
 	uqh := userQueryHandler{users: make(map[int]user)}
 
 	_ = reventsdkgo.RegisterQueryHandler(s, getUserByID, uqh.GetUserByID)
 	_ = reventsdkgo.RegisterQueryHandler(s, getAllUsers, uqh.GetAllUsers)
 	_ = reventsdkgo.RegisterSourceEventHandler(uqh.OnUserCreatedEvent)
+
+	if err := reventsdkgo.OpenSession(ctx, s); err != nil {
+		logger.ErrorContext(ctx, "Failed to open session", slog.Any("clientID", clientID), slog.Any("error", err))
+	}
 
 	// add http server with endpoint to ask for users by id
 
