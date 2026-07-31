@@ -74,6 +74,7 @@ func (s *State) init(
 				if !ok {
 					return nil
 				}
+
 				if m == nil {
 					continue
 				}
@@ -99,6 +100,7 @@ func (s *State) init(
 				return fmt.Errorf("failed to receive stream message: %w", errRecv)
 			}
 			// switch payload := msg.Payload.(type) { ... }
+			//nolint:forbidigo // TODO: just for debugging for now
 			fmt.Printf("Received: %v\n", msg)
 		}
 	})
@@ -131,5 +133,6 @@ func isContextShutdownError(ctx context.Context, err error) bool {
 	}
 
 	errCode := status.Code(err)
+
 	return errCode == codes.Canceled || errCode == codes.DeadlineExceeded
 }
