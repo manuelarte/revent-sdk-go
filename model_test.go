@@ -8,7 +8,9 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 
 	reventv1 "github.com/manuelarte/revent-sdk-go/internal/api/gRPC/revent/v1"
 )
@@ -73,7 +75,7 @@ func TestStateInitStopsOnContextCancelBeforeInit(t *testing.T) {
 
 	done := make(chan error, 1)
 	go func() {
-		done <- s.Init(ctx, stream)
+		done <- s.init(ctx, stream)
 	}()
 
 	select {
@@ -93,7 +95,7 @@ func TestStateInitStopsOnContextCancel(t *testing.T) {
 
 	done := make(chan error, 1)
 	go func() {
-		done <- s.Init(ctx, stream)
+		done <- s.init(ctx, stream)
 	}()
 
 	cancel()
@@ -118,7 +120,7 @@ func TestStateInitReturnsRecvError(t *testing.T) {
 
 	s := NewState(DefaultConfig())
 
-	err := s.Init(ctx, stream)
+	err := s.init(ctx, stream)
 	if err == nil {
 		t.Fatal("Init() error = nil, want recv error")
 	}
@@ -137,7 +139,37 @@ func TestStateInitStopsOnRecvEOF(t *testing.T) {
 
 	s := NewState(DefaultConfig())
 
-	err := s.Init(ctx, stream)
+	err := s.init(ctx, stream)
+	if err != nil {
+		t.Fatalf("Init() error = %v, want nil", err)
+	}
+}
+
+func TestStateInitStopsOnRecvContextCanceledError(t *testing.T) {
+	ctx := t.Context()
+	stream := newFakeBidiStream(ctx)
+	stream.recvFn = func() (*reventv1.ServerToClientMessage, error) {
+		return nil, context.Canceled
+	}
+
+	s := NewState(DefaultConfig())
+
+	err := s.init(ctx, stream)
+	if err != nil {
+		t.Fatalf("Init() error = %v, want nil", err)
+	}
+}
+
+func TestStateInitStopsOnRecvGRPCCanceledStatus(t *testing.T) {
+	ctx := t.Context()
+	stream := newFakeBidiStream(ctx)
+	stream.recvFn = func() (*reventv1.ServerToClientMessage, error) {
+		return nil, status.Error(codes.Canceled, "client canceled")
+	}
+
+	s := NewState(DefaultConfig())
+
+	err := s.init(ctx, stream)
 	if err != nil {
 		t.Fatalf("Init() error = %v, want nil", err)
 	}
@@ -174,7 +206,7 @@ func TestStateInitSendsRegisterClientMessage(t *testing.T) {
 	cfg := DefaultConfig()
 	s := NewState(cfg)
 
-	err := s.Init(ctx, stream)
+	err := s.init(ctx, stream)
 	if err != nil {
 		t.Fatalf("Init() error = %v, want nil", err)
 	}

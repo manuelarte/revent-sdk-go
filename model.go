@@ -9,6 +9,8 @@ import (
 
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	reventv1 "github.com/manuelarte/revent-sdk-go/internal/api/gRPC/revent/v1"
 	"github.com/manuelarte/revent-sdk-go/revent"
@@ -68,7 +70,14 @@ func (s *State) init(
 			select {
 			case <-ctx.Done():
 				return nil
-			case m := <-sendCh:
+			case m, ok := <-sendCh:
+				if !ok {
+					return nil
+				}
+				if m == nil {
+					continue
+				}
+
 				if err := stream.Send(m); err != nil {
 					return fmt.Errorf("failed to send stream message: %w", err)
 				}
@@ -81,13 +90,9 @@ func (s *State) init(
 			msg, errRecv := stream.Recv()
 			if errRecv != nil {
 				// Recv is bound to the stream context and will unblock on cancellation.
-				if errors.Is(errRecv, io.EOF) {
+				if errors.Is(errRecv, io.EOF) || isContextShutdownError(ctx, errRecv) {
 					cancel()
 
-					return nil
-				}
-
-				if ctx.Err() != nil {
 					return nil
 				}
 
@@ -114,4 +119,17 @@ func (s *State) init(
 	}
 
 	return g.Wait()
+}
+
+func isContextShutdownError(ctx context.Context, err error) bool {
+	if ctx.Err() != nil {
+		return true
+	}
+
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+
+	errCode := status.Code(err)
+	return errCode == codes.Canceled || errCode == codes.DeadlineExceeded
 }
