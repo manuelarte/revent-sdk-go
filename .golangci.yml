@@ -98,6 +98,8 @@ linters:
       default-signifies-exhaustive: false
     gocognit:
       min-complexity: 20
+    goconst:
+      ignore-string-values: "localhost"
     gocritic:
       settings:
         captLocal:

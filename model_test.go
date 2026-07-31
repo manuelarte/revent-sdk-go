@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"sync"
 	"testing"
 	"time"
 
@@ -13,13 +14,12 @@ import (
 )
 
 type fakeBidiStream struct {
-	ctx    context.Context
 	recvFn func() (*reventv1.ServerToClientMessage, error)
 	sendFn func(*reventv1.ClientToServerMessage) error
 }
 
 func newFakeBidiStream(ctx context.Context) *fakeBidiStream {
-	f := &fakeBidiStream{ctx: ctx}
+	f := &fakeBidiStream{}
 	f.recvFn = func() (*reventv1.ServerToClientMessage, error) {
 		<-ctx.Done()
 
@@ -53,7 +53,7 @@ func (f *fakeBidiStream) CloseSend() error {
 }
 
 func (f *fakeBidiStream) Context() context.Context {
-	return f.ctx
+	return context.Background()
 }
 
 func (f *fakeBidiStream) SendMsg(any) error {
@@ -140,5 +140,59 @@ func TestStateInitStopsOnRecvEOF(t *testing.T) {
 	err := s.Init(ctx, stream)
 	if err != nil {
 		t.Fatalf("Init() error = %v, want nil", err)
+	}
+}
+
+func TestStateInitSendsRegisterClientMessage(t *testing.T) {
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+	defer cancel()
+
+	stream := newFakeBidiStream(ctx)
+	sentCh := make(chan *reventv1.ClientToServerMessage, 1)
+	sentSignal := make(chan struct{})
+
+	var sentOnce sync.Once
+
+	stream.sendFn = func(msg *reventv1.ClientToServerMessage) error {
+		sentCh <- msg
+
+		sentOnce.Do(func() {
+			close(sentSignal)
+		})
+
+		return nil
+	}
+	stream.recvFn = func() (*reventv1.ServerToClientMessage, error) {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-sentSignal:
+			return nil, io.EOF
+		}
+	}
+
+	cfg := DefaultConfig()
+	s := NewState(cfg)
+
+	err := s.Init(ctx, stream)
+	if err != nil {
+		t.Fatalf("Init() error = %v, want nil", err)
+	}
+
+	select {
+	case msg := <-sentCh:
+		registerPayload, ok := msg.Payload.(*reventv1.ClientToServerMessage_RegisterClient)
+		if !ok {
+			t.Fatalf("Init() first send payload = %T, want RegisterClient", msg.Payload)
+		}
+
+		if registerPayload.RegisterClient.GetClientId() != cfg.ClientID.String() {
+			t.Fatalf("RegisterClient.ClientId = %q, want %q",
+				registerPayload.RegisterClient.GetClientId(),
+				cfg.ClientID.String(),
+			)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Init() did not send RegisterClient message")
 	}
 }

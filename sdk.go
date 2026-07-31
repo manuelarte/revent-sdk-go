@@ -34,8 +34,8 @@ func OpenSession(ctx context.Context, state *State) error {
 		return fmt.Errorf("failed to open session: %w", err)
 	}
 
-	if err := state.Init(ctx, stream); err != nil {
-		return fmt.Errorf("session ended with error: %w", err)
+	if errInit := state.init(ctx, stream); errInit != nil {
+		return fmt.Errorf("session ended with error: %w", errInit)
 	}
 
 	return nil

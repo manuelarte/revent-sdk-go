@@ -46,12 +46,22 @@ func NewState(cfg Config) *State {
 	}
 }
 
-func (s *State) Init(ctx context.Context, stream grpc.BidiStreamingClient[reventv1.ClientToServerMessage, reventv1.ServerToClientMessage]) error {
+// init initializes the state with the given stream.
+//
+//nolint:gocognit //TODO: refactor
+func (s *State) init(
+	ctx context.Context,
+	stream grpc.BidiStreamingClient[
+		reventv1.ClientToServerMessage,
+		reventv1.ServerToClientMessage,
+	],
+) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	g, ctx := errgroup.WithContext(ctx)
-	sendCh := make(chan *reventv1.ClientToServerMessage)
+	// Buffer the first control message so startup does not block if sender exits early.
+	sendCh := make(chan *reventv1.ClientToServerMessage, 1)
 
 	g.Go(func() error {
 		for {
@@ -88,13 +98,19 @@ func (s *State) Init(ctx context.Context, stream grpc.BidiStreamingClient[revent
 		}
 	})
 
-	sendCh <- &reventv1.ClientToServerMessage{
+	registerMsg := &reventv1.ClientToServerMessage{
 		Payload: &reventv1.ClientToServerMessage_RegisterClient{
 			RegisterClient: &reventv1.RegisterClient{
 				ClientId:      s.cfg.ClientID.String(),
 				QueryHandlers: nil,
 			},
 		},
+	}
+
+	select {
+	case <-ctx.Done():
+		return nil
+	case sendCh <- registerMsg:
 	}
 
 	return g.Wait()
