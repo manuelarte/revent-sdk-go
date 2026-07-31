@@ -12,10 +12,10 @@ type (
 	// QueryID defines the unique identifier for a query.
 	QueryID string
 
-	QueryRequestParameter json.Unmarshaler
-	QueryResponse         json.Marshaler
+	QueryRequestParameters json.Unmarshaler
+	QueryResponse          json.Marshaler
 
-	QueryHandler[I QueryRequestParameter, O QueryResponse] func(context.Context, I) O
+	QueryHandlerFunc[I QueryRequestParameters, O QueryResponse] func(context.Context, I) O
 
 	QueryHandlerAlreadyRegisteredError struct {
 		QueryID QueryID

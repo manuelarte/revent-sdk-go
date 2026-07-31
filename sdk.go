@@ -39,10 +39,10 @@ func OpenSession(ctx context.Context, state *State) error {
 // RegisterQueryHandler registers a query handler for a specific query ID.
 // It ensures that only one handler is registered for each query ID and returns an error
 // if a handler already exists for the given query ID.
-func RegisterQueryHandler[I revent.QueryRequestParameter, O revent.QueryResponse](
+func RegisterQueryHandler[I revent.QueryRequestParameters, O revent.QueryResponse](
 	s *State,
 	queryID revent.QueryID,
-	qh revent.QueryHandler[I, O],
+	qh revent.QueryHandlerFunc[I, O],
 ) error {
 	s.muQueryHandlers.Lock()
 	defer s.muQueryHandlers.Unlock()
