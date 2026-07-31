@@ -7,10 +7,8 @@ import (
 )
 
 var (
-	_ revent.QueryRequestParameters = new(getUserByIdQueryParams)
-	_ revent.QueryResponse          = new(getUserByIdQueryResponse)
-	_ revent.QueryRequestParameters = new(getAllUsersParams)
-	_ revent.QueryResponse          = new(getAllUsersResponse)
+	getUserByID revent.Query[getUserByIdQueryParams, getUserByIdQueryResponse] = "examples.GetUserByID"
+	getAllUsers revent.Query[getAllUsersParams, getAllUsersResponse]           = "examples.GetAllUsers"
 )
 
 type (

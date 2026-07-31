@@ -23,6 +23,16 @@ func (uqh *userQueryHandler) GetUserByID(_ context.Context, params getUserByIdQu
 	}
 }
 
+func (uqh *userQueryHandler) GetAllUsers(_ context.Context, _ getAllUsersParams) getAllUsersResponse {
+	users := make([]user, 0, len(uqh.users))
+	for _, u := range uqh.users {
+		users = append(users, u)
+	}
+	return getAllUsersResponse{
+		Users: users,
+	}
+}
+
 // OnUserCreatedEvent event handler for events.UserCreatedEvent
 func (uqh *userQueryHandler) OnUserCreatedEvent(_ context.Context, event revent.SourceEvent[events.UserCreatedEvent]) {
 	uqh.users[event.Payload.Id] = user{

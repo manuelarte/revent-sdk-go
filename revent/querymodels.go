@@ -15,6 +15,7 @@ type (
 	QueryRequestParameters json.Unmarshaler
 	QueryResponse          json.Marshaler
 
+	Query[I QueryRequestParameters, O QueryResponse]            QueryID
 	QueryHandlerFunc[I QueryRequestParameters, O QueryResponse] func(context.Context, I) O
 
 	QueryHandlerAlreadyRegisteredError struct {
