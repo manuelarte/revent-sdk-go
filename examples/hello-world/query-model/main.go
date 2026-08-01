@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	reventsdkgo "github.com/manuelarte/revent-sdk-go"
@@ -17,7 +18,10 @@ func main() {
 func run(logger *slog.Logger) error {
 	ctx := context.Background()
 	cfg := reventsdkgo.DefaultConfig()
-	s := reventsdkgo.NewState(cfg)
+	s, err := reventsdkgo.NewState(cfg)
+	if err != nil {
+		return fmt.Errorf("failed to create state: %w", err)
+	}
 	clientID := cfg.ClientID
 	logger.InfoContext(ctx, "Starting Query app", slog.Any("clientID", clientID))
 

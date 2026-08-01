@@ -2,43 +2,13 @@ package revent_sdk_go
 
 import (
 	"context"
-	"fmt"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-
-	reventv1 "github.com/manuelarte/revent-sdk-go/internal/api/gRPC/revent/v1"
 	"github.com/manuelarte/revent-sdk-go/revent"
 )
 
 // OpenSession TODO: pending.
 func OpenSession(ctx context.Context, state *State) error {
-	if err := state.cfg.Validate(); err != nil {
-		return fmt.Errorf("invalid config: %w", err)
-	}
-
-	gRPCClientConn, err := grpc.NewClient(
-		state.cfg.GetGRPCAddress(),
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		// Inject tracing information for R-Event
-		// grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to instantiate GRPC client: %w", err)
-	}
-
-	cc := reventv1.NewControlClient(gRPCClientConn)
-
-	stream, err := cc.OpenSession(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to open session: %w", err)
-	}
-
-	if errInit := state.init(ctx, stream); errInit != nil {
-		return fmt.Errorf("session ended with error: %w", errInit)
-	}
-
-	return nil
+	return state.init(ctx)
 }
 
 // RegisterQueryHandler registers a query handler for a specific query ID.

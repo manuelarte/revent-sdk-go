@@ -66,36 +66,45 @@ func (f *fakeBidiStream) RecvMsg(any) error {
 	return nil
 }
 
-func TestStateInitStopsOnContextCancelBeforeInit(t *testing.T) {
+func TestStateRunStopsOnContextCancelBeforeRun(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
-	stream := newFakeBidiStream(ctx)
-	s := NewState(DefaultConfig())
+	s, errState := NewState(DefaultConfig())
+	if errState != nil {
+		t.Fatalf("NewState() error = %v, want nil", errState)
+	}
 
 	done := make(chan error, 1)
+
 	go func() {
-		done <- s.init(ctx, stream)
+		s.stream = newFakeBidiStream(ctx)
+		done <- s.run(ctx)
 	}()
 
 	select {
 	case err := <-done:
 		if err != nil {
-			t.Fatalf("Init() error = %v, want nil", err)
+			t.Fatalf("run() error = %v, want nil", err)
 		}
 	case <-time.After(time.Second):
-		t.Fatal("Init() did not stop after context cancellation")
+		t.Fatal("run() did not stop after context cancellation")
 	}
 }
 
-func TestStateInitStopsOnContextCancel(t *testing.T) {
+func TestStateRunStopsOnContextCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
-	stream := newFakeBidiStream(ctx)
-	s := NewState(DefaultConfig())
+
+	s, errState := NewState(DefaultConfig())
+	if errState != nil {
+		t.Fatalf("NewState() error = %v, want nil", errState)
+	}
 
 	done := make(chan error, 1)
+
 	go func() {
-		done <- s.init(ctx, stream)
+		s.stream = newFakeBidiStream(ctx)
+		done <- s.run(ctx)
 	}()
 
 	cancel()
@@ -103,14 +112,14 @@ func TestStateInitStopsOnContextCancel(t *testing.T) {
 	select {
 	case err := <-done:
 		if err != nil {
-			t.Fatalf("Init() error = %v, want nil", err)
+			t.Fatalf("run() error = %v, want nil", err)
 		}
 	case <-time.After(time.Second):
-		t.Fatal("Init() did not stop after context cancellation")
+		t.Fatal("run() did not stop after context cancellation")
 	}
 }
 
-func TestStateInitReturnsRecvError(t *testing.T) {
+func TestStateRunReturnsRecvError(t *testing.T) {
 	ctx := t.Context()
 	expectedErr := errors.New("recv failure")
 	stream := newFakeBidiStream(ctx)
@@ -118,64 +127,86 @@ func TestStateInitReturnsRecvError(t *testing.T) {
 		return nil, expectedErr
 	}
 
-	s := NewState(DefaultConfig())
+	s, err := NewState(DefaultConfig())
+	if err != nil {
+		t.Fatalf("NewState() error = %v, want nil", err)
+	}
 
-	err := s.init(ctx, stream)
+	s.stream = stream
+
+	err = s.run(ctx)
 	if err == nil {
-		t.Fatal("Init() error = nil, want recv error")
+		t.Fatal("run() error = nil, want recv error")
 	}
 
 	if !errors.Is(err, expectedErr) {
-		t.Fatalf("Init() error = %v, want wrapped %v", err, expectedErr)
+		t.Fatalf("run() error = %v, want wrapped %v", err, expectedErr)
 	}
 }
 
-func TestStateInitStopsOnRecvEOF(t *testing.T) {
+func TestStateRunStopsOnRecvEOF(t *testing.T) {
 	ctx := t.Context()
 	stream := newFakeBidiStream(ctx)
 	stream.recvFn = func() (*reventv1.ServerToClientMessage, error) {
 		return nil, io.EOF
 	}
 
-	s := NewState(DefaultConfig())
-
-	err := s.init(ctx, stream)
+	s, err := NewState(DefaultConfig())
 	if err != nil {
-		t.Fatalf("Init() error = %v, want nil", err)
+		t.Fatalf("NewState() error = %v, want nil", err)
+	}
+
+	s.stream = stream
+
+	err = s.run(ctx)
+
+	var actualErr CantConnectToServerError
+	if ok := errors.As(err, &actualErr); !ok {
+		t.Fatalf("run() error = %v, want CantConnectToServerError", actualErr)
 	}
 }
 
-func TestStateInitStopsOnRecvContextCanceledError(t *testing.T) {
+func TestStateRunStopsOnRecvContextCanceledError(t *testing.T) {
 	ctx := t.Context()
 	stream := newFakeBidiStream(ctx)
 	stream.recvFn = func() (*reventv1.ServerToClientMessage, error) {
 		return nil, context.Canceled
 	}
 
-	s := NewState(DefaultConfig())
-
-	err := s.init(ctx, stream)
+	s, err := NewState(DefaultConfig())
 	if err != nil {
-		t.Fatalf("Init() error = %v, want nil", err)
+		t.Fatalf("NewState() error = %v, want nil", err)
+	}
+
+	s.stream = stream
+
+	err = s.run(ctx)
+	if err != nil {
+		t.Fatalf("run() error = %v, want nil", err)
 	}
 }
 
-func TestStateInitStopsOnRecvGRPCCanceledStatus(t *testing.T) {
+func TestStateRunStopsOnRecvGRPCCanceledStatus(t *testing.T) {
 	ctx := t.Context()
 	stream := newFakeBidiStream(ctx)
 	stream.recvFn = func() (*reventv1.ServerToClientMessage, error) {
 		return nil, status.Error(codes.Canceled, "client canceled")
 	}
 
-	s := NewState(DefaultConfig())
-
-	err := s.init(ctx, stream)
+	s, err := NewState(DefaultConfig())
 	if err != nil {
-		t.Fatalf("Init() error = %v, want nil", err)
+		t.Fatalf("NewState() error = %v, want nil", err)
+	}
+
+	s.stream = stream
+
+	err = s.run(ctx)
+	if err != nil {
+		t.Fatalf("run() error = %v, want nil", err)
 	}
 }
 
-func TestStateInitSendsRegisterClientMessage(t *testing.T) {
+func TestStateRunSendsRegisterClientMessage(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
 	defer cancel()
 
@@ -198,24 +229,35 @@ func TestStateInitSendsRegisterClientMessage(t *testing.T) {
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
-		case <-sentSignal:
-			return nil, io.EOF
+		case _, ok := <-sentSignal:
+			if ok {
+				return nil, io.EOF
+			}
 		}
+
+		//nolint:nilnil // false positive
+		return nil, nil
 	}
 
 	cfg := DefaultConfig()
-	s := NewState(cfg)
 
-	err := s.init(ctx, stream)
+	s, err := NewState(cfg)
 	if err != nil {
-		t.Fatalf("Init() error = %v, want nil", err)
+		t.Fatalf("NewState() error = %v, want nil", err)
+	}
+
+	s.stream = stream
+
+	err = s.run(ctx)
+	if err != nil {
+		t.Fatalf("run() error = %v, want nil", err)
 	}
 
 	select {
 	case msg := <-sentCh:
 		registerPayload, ok := msg.Payload.(*reventv1.ClientToServerMessage_RegisterClient)
 		if !ok {
-			t.Fatalf("Init() first send payload = %T, want RegisterClient", msg.Payload)
+			t.Fatalf("run() first send payload = %T, want RegisterClient", msg.Payload)
 		}
 
 		if registerPayload.RegisterClient.GetClientId() != cfg.ClientID.String() {
@@ -225,6 +267,6 @@ func TestStateInitSendsRegisterClientMessage(t *testing.T) {
 			)
 		}
 	case <-time.After(time.Second):
-		t.Fatal("Init() did not send RegisterClient message")
+		t.Fatal("run() did not send RegisterClient message")
 	}
 }

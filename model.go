@@ -5,29 +5,57 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"sync"
+	"time"
 
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 
 	reventv1 "github.com/manuelarte/revent-sdk-go/internal/api/gRPC/revent/v1"
+	backoff2 "github.com/manuelarte/revent-sdk-go/internal/backoff"
 	"github.com/manuelarte/revent-sdk-go/revent"
 )
 
-var ErrClientIDRequired = errors.New("ClientID is required")
+var (
+	ErrClientIDRequired       = errors.New("ClientID is required")
+	_                   error = new(CantConnectToServerError)
+)
 
 type (
 	// ClientID defines the client id to register to R-event.
 	ClientID string
 
+	CantConnectToServerError struct {
+		Addr        string
+		NumAttempts int
+	}
+
+	ILogger interface {
+		Info(msg string, args ...any)
+		Error(msg string, args ...any)
+		Warn(msg string, args ...any)
+		Debug(msg string, args ...any)
+	}
+
+	//go:structinit
 	State struct {
+		logger          ILogger
 		cfg             Config
 		muQueryHandlers sync.RWMutex
 		queryHandlers   map[revent.QueryID]any
+
+		sendCh chan *reventv1.ClientToServerMessage
+		stream grpc.BidiStreamingClient[reventv1.ClientToServerMessage, reventv1.ServerToClientMessage]
 	}
 )
+
+func (c CantConnectToServerError) Error() string {
+	return fmt.Sprintf("failed to connect to server at %s after %d attempts", c.Addr, c.NumAttempts)
+}
 
 func (c ClientID) Validate() error {
 	if c == "" {
@@ -41,36 +69,94 @@ func (c ClientID) String() string {
 	return string(c)
 }
 
-func NewState(cfg Config) *State {
+func NewState(cfg Config) (*State, error) {
+	if err := cfg.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid config: %w", err)
+	}
+
 	return &State{
 		cfg:           cfg,
 		queryHandlers: make(map[revent.QueryID]any),
+		logger:        slog.Default(),
+		// Buffer the first control message so startup does not block if sender exits early.
+		sendCh: make(chan *reventv1.ClientToServerMessage, 1),
+	}, nil
+}
+
+func (s *State) init(ctx context.Context) error {
+	err := s.connect(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to connect to R-event: %w", err)
+	}
+
+	if errInit := s.run(ctx); errInit != nil {
+		return fmt.Errorf("session ended with error: %w", errInit)
+	}
+
+	return nil
+}
+
+func (s *State) connect(ctx context.Context) error {
+	gRPCClientConn, errClient := grpc.NewClient(
+		s.cfg.GetGRPCAddress(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithConnectParams(grpc.ConnectParams{
+			Backoff:           s.cfg.BackoffCfg,
+			MinConnectTimeout: 1 * time.Second,
+		}),
+		// Inject tracing information for R-Event
+		// grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
+	)
+	if errClient != nil {
+		return fmt.Errorf("failed to instantiate GRPC client: %w", errClient)
+	}
+
+	cc := reventv1.NewControlClient(gRPCClientConn)
+	expBackoff := backoff2.Exponential{Config: s.cfg.BackoffCfg}
+
+	maxAttempts := int(s.cfg.NumberOfRetries)
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		stream, err := cc.OpenSession(ctx)
+		if err != nil {
+			if st, ok := status.FromError(err); ok {
+				if st.Code() == codes.Unavailable {
+					s.logger.Warn("R-Event server is not available, retrying...")
+
+					time.Sleep(expBackoff.Backoff(attempt))
+
+					continue
+				}
+			}
+
+			return fmt.Errorf("failed to open session: %w", err)
+		}
+
+		s.stream = stream
+
+		return nil
+	}
+
+	return CantConnectToServerError{
+		Addr:        s.cfg.ServerURL,
+		NumAttempts: maxAttempts,
 	}
 }
 
-// init initializes the state with the given stream.
+// run initializes the state with the given stream.
 //
 //nolint:gocognit //TODO: refactor
-func (s *State) init(
-	ctx context.Context,
-	stream grpc.BidiStreamingClient[
-		reventv1.ClientToServerMessage,
-		reventv1.ServerToClientMessage,
-	],
-) error {
+func (s *State) run(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	g, ctx := errgroup.WithContext(ctx)
-	// Buffer the first control message so startup does not block if sender exits early.
-	sendCh := make(chan *reventv1.ClientToServerMessage, 1)
 
 	g.Go(func() error {
 		for {
 			select {
 			case <-ctx.Done():
 				return nil
-			case m, ok := <-sendCh:
+			case m, ok := <-s.sendCh:
 				if !ok {
 					return nil
 				}
@@ -79,7 +165,7 @@ func (s *State) init(
 					continue
 				}
 
-				if err := stream.Send(m); err != nil {
+				if err := s.stream.Send(m); err != nil {
 					return fmt.Errorf("failed to send stream message: %w", err)
 				}
 			}
@@ -88,10 +174,18 @@ func (s *State) init(
 
 	g.Go(func() error {
 		for {
-			msg, errRecv := stream.Recv()
+			msg, errRecv := s.stream.Recv()
 			if errRecv != nil {
 				// Recv is bound to the stream context and will unblock on cancellation.
-				if errors.Is(errRecv, io.EOF) || isContextShutdownError(ctx, errRecv) {
+				if errors.Is(errRecv, io.EOF) {
+					if err := OpenSession(ctx, s); err != nil {
+						return fmt.Errorf("failed to reconnect: %w", err)
+					}
+
+					continue
+				}
+
+				if isContextShutdownError(ctx, errRecv) {
 					cancel()
 
 					return nil
@@ -117,7 +211,7 @@ func (s *State) init(
 	select {
 	case <-ctx.Done():
 		return nil
-	case sendCh <- registerMsg:
+	case s.sendCh <- registerMsg:
 	}
 
 	return g.Wait()

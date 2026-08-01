@@ -4,7 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
+
+	"google.golang.org/grpc/backoff"
 )
+
+const defaultMaxNumberOfRetries = 4
+
+var ErrNumberOfRetries = errors.New("NumberOfRetries must be greater than 0 and lower than 10")
 
 //go:structinit
 type Config struct {
@@ -16,6 +22,10 @@ type Config struct {
 	ServerGRPCPort int
 	// ServerRestPort R-Event REST port.
 	ServerRestPort int
+	// NumberOfRetries number of retries to connect to R-Event server.
+	NumberOfRetries uint
+	// Expontential Backoff configuration
+	BackoffCfg backoff.Config
 }
 
 // DefaultConfig returns a default configuration.
@@ -26,10 +36,12 @@ func DefaultConfig() Config {
 	}
 
 	return Config{
-		ClientID:       ClientID(hostname),
-		ServerURL:      "localhost",
-		ServerGRPCPort: 10000,
-		ServerRestPort: 10001,
+		ClientID:        ClientID(hostname),
+		ServerURL:       "localhost",
+		ServerGRPCPort:  10000,
+		ServerRestPort:  10001,
+		NumberOfRetries: defaultMaxNumberOfRetries,
+		BackoffCfg:      backoff.DefaultConfig,
 	}
 }
 
@@ -52,6 +64,10 @@ func (c Config) Validate() error {
 
 	if c.ServerRestPort <= 0 {
 		return errors.New("server REST port is required")
+	}
+
+	if c.NumberOfRetries == 0 {
+		return ErrNumberOfRetries
 	}
 
 	return nil
