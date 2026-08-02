@@ -10,7 +10,12 @@ import (
 
 const defaultMaxNumberOfRetries = 4
 
-var ErrNumberOfRetries = errors.New("NumberOfRetries must be greater than 0 and lower than 10")
+var (
+	ErrNumberOfRetries = errors.New("NumberOfRetries must be greater than 0 and lower than 10")
+	ErrServerURL       = errors.New("ServerURL is required")
+	ErrServerGRPCPort  = errors.New("ServerGRPCPort is required")
+	ErrServerRestPort  = errors.New("ServerRestPort is required")
+)
 
 //go:structinit
 type Config struct {
@@ -55,15 +60,15 @@ func (c Config) Validate() error {
 	}
 
 	if c.ServerURL == "" {
-		return errors.New("server URL is required")
+		return ErrServerURL
 	}
 
 	if c.ServerGRPCPort <= 0 {
-		return errors.New("server gRPC port is required")
+		return ErrServerGRPCPort
 	}
 
 	if c.ServerRestPort <= 0 {
-		return errors.New("server REST port is required")
+		return ErrServerRestPort
 	}
 
 	if c.NumberOfRetries == 0 {

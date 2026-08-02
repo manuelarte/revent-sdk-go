@@ -1,6 +1,7 @@
 package revent_sdk_go
 
 import (
+	"errors"
 	"testing"
 )
 
@@ -8,8 +9,7 @@ func TestConfigValidate(t *testing.T) {
 	tests := []struct {
 		name    string
 		config  Config
-		wantErr bool
-		errMsg  string
+		wantErr error
 	}{
 		{
 			name: "valid configuration",
@@ -20,7 +20,7 @@ func TestConfigValidate(t *testing.T) {
 				ServerRestPort:  8080,
 				NumberOfRetries: 4,
 			},
-			wantErr: false,
+			wantErr: nil,
 		},
 		{
 			name: "missing client ID",
@@ -31,8 +31,7 @@ func TestConfigValidate(t *testing.T) {
 				ServerRestPort:  8080,
 				NumberOfRetries: 4,
 			},
-			wantErr: true,
-			errMsg:  "invalid ClientID: ClientID is required",
+			wantErr: ErrClientIDRequired,
 		},
 		{
 			name: "missing server URL",
@@ -43,8 +42,7 @@ func TestConfigValidate(t *testing.T) {
 				ServerRestPort:  8080,
 				NumberOfRetries: 4,
 			},
-			wantErr: true,
-			errMsg:  "server URL is required",
+			wantErr: ErrServerURL,
 		},
 		{
 			name: "invalid gRPC port - zero",
@@ -55,8 +53,7 @@ func TestConfigValidate(t *testing.T) {
 				ServerRestPort:  8080,
 				NumberOfRetries: 4,
 			},
-			wantErr: true,
-			errMsg:  "server gRPC port is required",
+			wantErr: ErrServerGRPCPort,
 		},
 		{
 			name: "invalid gRPC port - negative",
@@ -67,8 +64,7 @@ func TestConfigValidate(t *testing.T) {
 				ServerRestPort:  8080,
 				NumberOfRetries: 4,
 			},
-			wantErr: true,
-			errMsg:  "server gRPC port is required",
+			wantErr: ErrServerGRPCPort,
 		},
 		{
 			name: "invalid REST port - zero",
@@ -79,8 +75,7 @@ func TestConfigValidate(t *testing.T) {
 				ServerRestPort:  0,
 				NumberOfRetries: 4,
 			},
-			wantErr: true,
-			errMsg:  "server REST port is required",
+			wantErr: ErrServerRestPort,
 		},
 		{
 			name: "invalid REST port - negative",
@@ -91,8 +86,7 @@ func TestConfigValidate(t *testing.T) {
 				ServerRestPort:  -1,
 				NumberOfRetries: 4,
 			},
-			wantErr: true,
-			errMsg:  "server REST port is required",
+			wantErr: ErrServerRestPort,
 		},
 		{
 			name: "all fields empty",
@@ -103,8 +97,7 @@ func TestConfigValidate(t *testing.T) {
 				ServerRestPort:  0,
 				NumberOfRetries: 4,
 			},
-			wantErr: true,
-			errMsg:  "invalid ClientID: " + ErrClientIDRequired.Error(),
+			wantErr: ErrClientIDRequired,
 		},
 		{
 			name: "high port numbers",
@@ -115,21 +108,17 @@ func TestConfigValidate(t *testing.T) {
 				ServerRestPort:  65535,
 				NumberOfRetries: 4,
 			},
-			wantErr: false,
+			wantErr: nil,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.config.Validate()
-			if (err != nil) != tt.wantErr {
+			if !errors.Is(err, tt.wantErr) {
 				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
 
 				return
-			}
-
-			if tt.wantErr && err.Error() != tt.errMsg {
-				t.Errorf("Validate() error = %q, want %q", err.Error(), tt.errMsg)
 			}
 		})
 	}
