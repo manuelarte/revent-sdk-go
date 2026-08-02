@@ -29,7 +29,7 @@ type Config struct {
 	ServerRestPort int
 	// NumberOfRetries number of retries to connect to R-Event server.
 	NumberOfRetries uint
-	// Expontential Backoff configuration
+	// Backoff configuration
 	BackoffCfg backoff.Config
 }
 
