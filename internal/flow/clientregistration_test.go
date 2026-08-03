@@ -6,32 +6,61 @@ import (
 	"log/slog"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
+
+	reventv1 "github.com/manuelarte/revent-sdk-go/internal/api/gRPC/revent/v1"
 )
 
 type fakeRegistrationManager struct {
-	registerErr  error
-	waitResponse ClientRegistrationResponse
-	waitErr      error
-	registeredID string
+	registerErr    error
+	subscribeErr   error
+	unsubscribeErr error
+	registeredID   string
+	predicate      func(msg *reventv1.ServerToClientMessage) bool
+	ch             chan<- *reventv1.ServerToClientMessage
+	response       *reventv1.ServerToClientMessage
+}
+
+func (f *fakeRegistrationManager) Subscribe(
+	_ uuid.UUID,
+	pred func(msg *reventv1.ServerToClientMessage) bool,
+	ch chan<- *reventv1.ServerToClientMessage,
+) error {
+	if f.subscribeErr != nil {
+		return f.subscribeErr
+	}
+
+	f.predicate = pred
+	f.ch = ch
+
+	return nil
+}
+
+func (f *fakeRegistrationManager) Unsubscribe(uuid.UUID) error {
+	return f.unsubscribeErr
 }
 
 func (f *fakeRegistrationManager) RegisterClient(clientID string) error {
 	f.registeredID = clientID
 
-	return f.registerErr
-}
-
-func (f *fakeRegistrationManager) WaitForClientRegistration(context.Context) (ClientRegistrationResponse, error) {
-	if f.waitErr != nil {
-		return ClientRegistrationResponse{}, f.waitErr
+	if f.response != nil && (f.predicate == nil || f.predicate(f.response)) {
+		select {
+		case f.ch <- f.response:
+		default:
+		}
 	}
 
-	return f.waitResponse, nil
+	return f.registerErr
 }
 
 func TestClientRegistrationDoSuccess(t *testing.T) {
 	m := &fakeRegistrationManager{
-		waitResponse: ClientRegistrationResponse{ClientID: "my-client"},
+		response: &reventv1.ServerToClientMessage{
+			Payload: &reventv1.ServerToClientMessage_ClientRegistered{
+				ClientRegistered: &reventv1.ClientRegistered{ClientId: "my-client"},
+			},
+		},
 	}
 	registration := NewClientRegistration(slog.Default(), "my-client")
 
@@ -51,11 +80,12 @@ func TestClientRegistrationDoSuccess(t *testing.T) {
 
 func TestClientRegistrationDoServerError(t *testing.T) {
 	m := &fakeRegistrationManager{
-		waitResponse: ClientRegistrationResponse{
-			ClientID: "my-client",
-			Err: ClientRegistrationRejectedError{
-				ClientID: "my-client",
-				Reason:   "duplicate client id",
+		response: &reventv1.ServerToClientMessage{
+			Payload: &reventv1.ServerToClientMessage_ClientRegistrationError{
+				ClientRegistrationError: &reventv1.ClientRegistrationError{
+					ClientId: "my-client",
+					Reason:   "duplicate client id",
+				},
 			},
 		},
 	}
@@ -69,7 +99,7 @@ func TestClientRegistrationDoServerError(t *testing.T) {
 
 func TestClientRegistrationDoTimeout(t *testing.T) {
 	m := &fakeRegistrationManager{
-		waitErr: context.DeadlineExceeded,
+		response: nil,
 	}
 	registration := NewClientRegistration(slog.Default(), "my-client")
 	registration.timeout = 10 * time.Millisecond
@@ -84,14 +114,23 @@ func TestClientRegistrationDoTimeout(t *testing.T) {
 	}
 }
 
-func TestClientRegistrationDoUnexpectedClientID(t *testing.T) {
+func TestClientRegistrationDoTimeoutWhenMessageDoesNotMatchPredicate(t *testing.T) {
 	m := &fakeRegistrationManager{
-		waitResponse: ClientRegistrationResponse{ClientID: "other-client"},
+		response: &reventv1.ServerToClientMessage{
+			Payload: &reventv1.ServerToClientMessage_ClientRegistered{
+				ClientRegistered: &reventv1.ClientRegistered{ClientId: "other-client"},
+			},
+		},
 	}
 	registration := NewClientRegistration(slog.Default(), "my-client")
+	registration.timeout = 10 * time.Millisecond
 
 	err := registration.Do(t.Context(), m)
 	if err == nil {
-		t.Fatal("Do() error = nil, want unexpected client id error")
+		t.Fatal("Do() error = nil, want timeout")
+	}
+
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("Do() error = %v, want wrapped deadline exceeded", err)
 	}
 }

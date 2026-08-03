@@ -4,8 +4,11 @@ import (
 	"context"
 	"errors"
 	"io"
+	"sync"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
 
 	reventv1 "github.com/manuelarte/revent-sdk-go/internal/api/gRPC/revent/v1"
 )
@@ -13,6 +16,14 @@ import (
 type fakeBidiStream struct {
 	recvFn func() (*reventv1.ServerToClientMessage, error)
 	sendFn func(*reventv1.ClientToServerMessage) error
+
+	mu          sync.RWMutex
+	subscribers map[uuid.UUID]fakeSubscription
+}
+
+type fakeSubscription struct {
+	predicate func(msg *reventv1.ServerToClientMessage) bool
+	ch        chan<- *reventv1.ServerToClientMessage
 }
 
 func newFakeBidiStream(ctx context.Context) *fakeBidiStream {
@@ -37,23 +48,49 @@ func (f *fakeBidiStream) Recv() (*reventv1.ServerToClientMessage, error) {
 	return f.recvFn()
 }
 
-func (f *fakeBidiStream) NextEvent(context.Context) (TxRxEvent, error) {
-	msg, err := f.Recv()
-	if err != nil {
-		return nil, err
+func (f *fakeBidiStream) Subscribe(
+	id uuid.UUID,
+	pred func(msg *reventv1.ServerToClientMessage) bool,
+	ch chan<- *reventv1.ServerToClientMessage,
+) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	if f.subscribers == nil {
+		f.subscribers = make(map[uuid.UUID]fakeSubscription)
 	}
 
-	switch payload := msg.GetPayload().(type) {
-	case *reventv1.ServerToClientMessage_ClientRegistered:
-		return ClientRegisteredEvent{ClientID: payload.ClientRegistered.GetClientId()}, nil
-	case *reventv1.ServerToClientMessage_ClientRegistrationError:
-		return ClientRegistrationErrorEvent{
-			ClientID: payload.ClientRegistrationError.GetClientId(),
-			Reason:   payload.ClientRegistrationError.GetReason(),
-		}, nil
-	default:
-		return UnhandledServerMessageEvent{Message: msg}, nil
+	f.subscribers[id] = fakeSubscription{predicate: pred, ch: ch}
+}
+
+func (f *fakeBidiStream) Unsubscribe(id uuid.UUID) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	delete(f.subscribers, id)
+}
+
+func (f *fakeBidiStream) Pump(context.Context) error {
+	msg, err := f.Recv()
+	if err != nil {
+		return err
 	}
+
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+
+	for _, sub := range f.subscribers {
+		if sub.predicate == nil || !sub.predicate(msg) {
+			continue
+		}
+
+		select {
+		case sub.ch <- msg:
+		default:
+		}
+	}
+
+	return nil
 }
 
 func (f *fakeBidiStream) RegisterClient(clientID string, queryHandlers []string) error {
@@ -243,54 +280,5 @@ func TestOpenSessionSecondCallDoesNotStartAgain(t *testing.T) {
 	err = OpenSession(ctx, s)
 	if err != nil {
 		t.Fatalf("OpenSession() second call error = %v, want nil", err)
-	}
-}
-
-func TestHandleStreamEventNotifiesClientRegistered(t *testing.T) {
-	s, err := NewState(DefaultConfig())
-	if err != nil {
-		t.Fatalf("NewState() error = %v, want nil", err)
-	}
-
-	s.handleStreamEvent(ClientRegisteredEvent{ClientID: s.cfg.ClientID.String()})
-
-	ctx, cancel := context.WithTimeout(t.Context(), 200*time.Millisecond)
-	defer cancel()
-
-	resp, err := s.WaitForClientRegistration(ctx)
-	if err != nil {
-		t.Fatalf("WaitForClientRegistration() error = %v, want nil", err)
-	}
-
-	if resp.Err != nil {
-		t.Fatalf("WaitForClientRegistration().Err = %v, want nil", resp.Err)
-	}
-
-	if resp.ClientID != s.cfg.ClientID.String() {
-		t.Fatalf("WaitForClientRegistration().ClientID = %q, want %q", resp.ClientID, s.cfg.ClientID.String())
-	}
-}
-
-func TestHandleStreamEventNotifiesClientRegistrationError(t *testing.T) {
-	s, err := NewState(DefaultConfig())
-	if err != nil {
-		t.Fatalf("NewState() error = %v, want nil", err)
-	}
-
-	s.handleStreamEvent(ClientRegistrationErrorEvent{
-		ClientID: s.cfg.ClientID.String(),
-		Reason:   "invalid client",
-	})
-
-	ctx, cancel := context.WithTimeout(t.Context(), 200*time.Millisecond)
-	defer cancel()
-
-	resp, err := s.WaitForClientRegistration(ctx)
-	if err != nil {
-		t.Fatalf("WaitForClientRegistration() error = %v, want nil", err)
-	}
-
-	if resp.Err == nil {
-		t.Fatal("WaitForClientRegistration().Err = nil, want error")
 	}
 }

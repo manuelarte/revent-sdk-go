@@ -3,6 +3,7 @@ module github.com/manuelarte/revent-sdk-go
 go 1.25.0
 
 require (
+	github.com/google/uuid v1.6.0
 	golang.org/x/sync v0.22.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20260729162451-8efbd57d26e0
 	google.golang.org/grpc v1.83.0

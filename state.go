@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/google/uuid"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -46,10 +47,9 @@ type State struct {
 	state  ConnectionState
 
 	// Connection lifecycle management
-	streamUpdates               chan TxRx
-	clientRegistrationResponses chan flow.ClientRegistrationResponse
-	muQueryHandlers             sync.RWMutex
-	queryHandlers               map[revent.QueryID]any
+	streamUpdates   chan TxRx
+	muQueryHandlers sync.RWMutex
+	queryHandlers   map[revent.QueryID]any
 }
 
 func NewState(cfg Config) (*State, error) {
@@ -58,11 +58,10 @@ func NewState(cfg Config) (*State, error) {
 	}
 
 	return &State{
-		logger:                      slog.Default(),
-		cfg:                         cfg,
-		streamUpdates:               make(chan TxRx, 1),
-		clientRegistrationResponses: make(chan flow.ClientRegistrationResponse, 1),
-		queryHandlers:               make(map[revent.QueryID]any),
+		logger:        slog.Default(),
+		cfg:           cfg,
+		streamUpdates: make(chan TxRx, 1),
+		queryHandlers: make(map[revent.QueryID]any),
 	}, nil
 }
 
@@ -75,20 +74,30 @@ func (s *State) RegisterClient(clientID string) error {
 	return stream.RegisterClient(clientID, s.getQueryHandlerIDs())
 }
 
-func (s *State) WaitForClientRegistration(ctx context.Context) (flow.ClientRegistrationResponse, error) {
-	for {
-		select {
-		case <-ctx.Done():
-			return flow.ClientRegistrationResponse{}, ctx.Err()
-		case response := <-s.clientRegistrationResponses:
-			// Ignore responses for other clients if multiple registrations race.
-			if response.ClientID != "" && response.ClientID != s.cfg.ClientID.String() {
-				continue
-			}
-
-			return response, nil
-		}
+func (s *State) Subscribe(
+	id uuid.UUID,
+	pred func(msg *reventv1.ServerToClientMessage) bool,
+	ch chan<- *reventv1.ServerToClientMessage,
+) error {
+	stream := s.getStream()
+	if stream == nil {
+		return errors.New("stream is not connected")
 	}
+
+	stream.Subscribe(id, pred, ch)
+
+	return nil
+}
+
+func (s *State) Unsubscribe(id uuid.UUID) error {
+	stream := s.getStream()
+	if stream == nil {
+		return errors.New("stream is not connected")
+	}
+
+	stream.Unsubscribe(id)
+
+	return nil
 }
 
 func (s *State) start(ctx context.Context) error {
@@ -159,7 +168,7 @@ func (s *State) listenToStream(ctx context.Context) {
 			}
 		}
 
-		event, err := stream.NextEvent(ctx)
+		err := stream.Pump(ctx)
 		if err != nil {
 			if ctx.Err() != nil {
 				s.logger.Info("Stream listener context cancelled")
@@ -178,8 +187,6 @@ func (s *State) listenToStream(ctx context.Context) {
 
 			continue
 		}
-
-		s.handleStreamEvent(event)
 	}
 }
 
@@ -251,7 +258,7 @@ func (s *State) connect(ctx context.Context) error {
 		}
 
 		// Connection successful
-		stream := gRPCTxRx{stream: gRPCStream}
+		stream := &gRPCTxRx{stream: gRPCStream}
 
 		s.setConn(gRPCClientConn)
 		s.setStream(stream)
@@ -279,44 +286,6 @@ func (s *State) connect(ctx context.Context) error {
 		Addr:        s.cfg.ServerURL,
 		NumAttempts: maxAttempts,
 	}
-}
-
-// handleStreamEvent processes a typed event received from the transport.
-func (s *State) handleStreamEvent(event TxRxEvent) {
-	if event == nil {
-		return
-	}
-
-	s.logger.Debug("Received event from stream", "event", formatTxRxEvent(event))
-
-	switch payload := event.(type) {
-	case ClientRegisteredEvent:
-		s.notifyClientRegistration(flow.ClientRegistrationResponse{
-			ClientID: payload.ClientID,
-		})
-	case ClientRegistrationErrorEvent:
-		s.notifyClientRegistration(flow.ClientRegistrationResponse{
-			ClientID: payload.ClientID,
-			Err: flow.ClientRegistrationRejectedError{
-				ClientID: payload.ClientID,
-				Reason:   payload.Reason,
-			},
-		})
-	case UnhandledServerMessageEvent:
-		// Other message types are handled by other flows.
-	default:
-		// Other message types are handled by other flows.
-	}
-}
-
-func (s *State) notifyClientRegistration(response flow.ClientRegistrationResponse) {
-	// Keep only the latest registration response in the 1-slot channel.
-	select {
-	case <-s.clientRegistrationResponses:
-	default:
-	}
-
-	s.clientRegistrationResponses <- response
 }
 
 func (s *State) setStream(

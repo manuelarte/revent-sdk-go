@@ -2,8 +2,9 @@ package revent_sdk_go
 
 import (
 	"context"
-	"fmt"
+	"sync"
 
+	"github.com/google/uuid"
 	"google.golang.org/grpc"
 
 	reventv1 "github.com/manuelarte/revent-sdk-go/internal/api/gRPC/revent/v1"
@@ -12,59 +13,75 @@ import (
 var _ TxRx = new(gRPCTxRx)
 
 type (
-	TxRxEvent interface {
-		isTxRxEvent()
-	}
-
-	ClientRegisteredEvent struct {
-		ClientID string
-	}
-
-	ClientRegistrationErrorEvent struct {
-		ClientID string
-		Reason   string
-	}
-
-	UnhandledServerMessageEvent struct {
-		Message *reventv1.ServerToClientMessage
-	}
-
 	TxRx interface {
-		NextEvent(ctx context.Context) (TxRxEvent, error)
+		Subscribe(
+			id uuid.UUID,
+			pred func(msg *reventv1.ServerToClientMessage,
+			) bool, ch chan<- *reventv1.ServerToClientMessage)
+		Unsubscribe(id uuid.UUID)
+		Pump(ctx context.Context) error
 		RegisterClient(clientID string, queryHandlers []string) error
+	}
+
+	streamSubscription struct {
+		predicate func(msg *reventv1.ServerToClientMessage) bool
+		ch        chan<- *reventv1.ServerToClientMessage
 	}
 
 	gRPCTxRx struct {
 		stream grpc.BidiStreamingClient[reventv1.ClientToServerMessage, reventv1.ServerToClientMessage]
+		mu     sync.RWMutex
+		subs   map[uuid.UUID]streamSubscription
 	}
 )
 
-func (ClientRegisteredEvent) isTxRxEvent() {}
+func (g *gRPCTxRx) Subscribe(
+	id uuid.UUID,
+	pred func(msg *reventv1.ServerToClientMessage) bool,
+	ch chan<- *reventv1.ServerToClientMessage,
+) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
 
-func (ClientRegistrationErrorEvent) isTxRxEvent() {}
-
-func (UnhandledServerMessageEvent) isTxRxEvent() {}
-
-func (g gRPCTxRx) NextEvent(_ context.Context) (TxRxEvent, error) {
-	msg, err := g.stream.Recv()
-	if err != nil {
-		return nil, err
+	if g.subs == nil {
+		g.subs = make(map[uuid.UUID]streamSubscription)
 	}
 
-	switch payload := msg.GetPayload().(type) {
-	case *reventv1.ServerToClientMessage_ClientRegistered:
-		return ClientRegisteredEvent{ClientID: payload.ClientRegistered.GetClientId()}, nil
-	case *reventv1.ServerToClientMessage_ClientRegistrationError:
-		return ClientRegistrationErrorEvent{
-			ClientID: payload.ClientRegistrationError.GetClientId(),
-			Reason:   payload.ClientRegistrationError.GetReason(),
-		}, nil
-	default:
-		return UnhandledServerMessageEvent{Message: msg}, nil
-	}
+	g.subs[id] = streamSubscription{predicate: pred, ch: ch}
 }
 
-func (g gRPCTxRx) RegisterClient(clientID string, queryHandlers []string) error {
+func (g *gRPCTxRx) Unsubscribe(id uuid.UUID) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	delete(g.subs, id)
+}
+
+func (g *gRPCTxRx) Pump(_ context.Context) error {
+	msg, err := g.stream.Recv()
+	if err != nil {
+		return err
+	}
+
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+
+	for _, sub := range g.subs {
+		if sub.predicate == nil || !sub.predicate(msg) {
+			continue
+		}
+
+		// Never block the receive loop on slow subscribers.
+		select {
+		case sub.ch <- msg:
+		default:
+		}
+	}
+
+	return nil
+}
+
+func (g *gRPCTxRx) RegisterClient(clientID string, queryHandlers []string) error {
 	return g.stream.Send(&reventv1.ClientToServerMessage{
 		Payload: &reventv1.ClientToServerMessage_RegisterClient{
 			RegisterClient: &reventv1.RegisterClient{
@@ -73,25 +90,4 @@ func (g gRPCTxRx) RegisterClient(clientID string, queryHandlers []string) error 
 			},
 		},
 	})
-}
-
-func formatTxRxEvent(event TxRxEvent) string {
-	if event == nil {
-		return "<nil>"
-	}
-
-	switch e := event.(type) {
-	case ClientRegisteredEvent:
-		return fmt.Sprintf("ClientRegistered(clientID=%q)", e.ClientID)
-	case ClientRegistrationErrorEvent:
-		return fmt.Sprintf("ClientRegistrationError(clientID=%q)", e.ClientID)
-	case UnhandledServerMessageEvent:
-		if e.Message == nil {
-			return "UnhandledServerMessage(<nil>)"
-		}
-
-		return fmt.Sprintf("UnhandledServerMessage(%T)", e.Message.GetPayload())
-	default:
-		return fmt.Sprintf("%T", event)
-	}
 }
