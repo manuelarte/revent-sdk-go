@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -43,10 +44,11 @@ type (
 
 	//go:structinit
 	State struct {
-		logger          ILogger
-		cfg             Config
-		muQueryHandlers sync.RWMutex
-		queryHandlers   map[revent.QueryID]any
+		logger            ILogger
+		cfg               Config
+		openSessionCalled atomic.Bool
+		muQueryHandlers   sync.RWMutex
+		queryHandlers     map[revent.QueryID]any
 
 		sendCh chan *reventv1.ClientToServerMessage
 		stream grpc.BidiStreamingClient[reventv1.ClientToServerMessage, reventv1.ServerToClientMessage]
@@ -178,7 +180,7 @@ func (s *State) run(ctx context.Context) error {
 			if errRecv != nil {
 				// Recv is bound to the stream context and will unblock on cancellation.
 				if errors.Is(errRecv, io.EOF) {
-					if err := OpenSession(ctx, s); err != nil {
+					if err := s.init(ctx); err != nil {
 						return fmt.Errorf("failed to reconnect: %w", err)
 					}
 

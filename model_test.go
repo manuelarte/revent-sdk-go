@@ -127,7 +127,10 @@ func TestStateRunReturnsRecvError(t *testing.T) {
 		return nil, expectedErr
 	}
 
-	s, err := NewState(DefaultConfig())
+	cfg := DefaultConfig()
+	cfg.NumberOfRetries = 1
+
+	s, err := NewState(cfg)
 	if err != nil {
 		t.Fatalf("NewState() error = %v, want nil", err)
 	}
@@ -268,5 +271,52 @@ func TestStateRunSendsRegisterClientMessage(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("run() did not send RegisterClient message")
+	}
+}
+
+func TestOpenSessionCanOnlyBeCalledOncePerState(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	s, err := NewState(DefaultConfig())
+	if err != nil {
+		t.Fatalf("NewState() error = %v, want nil", err)
+	}
+
+	_ = OpenSession(ctx, s)
+
+	err = OpenSession(ctx, s)
+	if !errors.Is(err, ErrOpenSessionAlreadyCalled) {
+		t.Fatalf("OpenSession() second call error = %v, want %v", err, ErrOpenSessionAlreadyCalled)
+	}
+}
+
+func TestStateRunReconnectBypassesOpenSessionGuard(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	stream := newFakeBidiStream(ctx)
+	stream.recvFn = func() (*reventv1.ServerToClientMessage, error) {
+		cancel()
+
+		return nil, io.EOF
+	}
+
+	s, err := NewState(DefaultConfig())
+	if err != nil {
+		t.Fatalf("NewState() error = %v, want nil", err)
+	}
+
+	// Simulate that public OpenSession was already called.
+	s.openSessionCalled.Store(true)
+	s.stream = stream
+
+	err = s.run(ctx)
+	if err == nil {
+		t.Fatal("run() error = nil, want reconnect failure")
+	}
+
+	if errors.Is(err, ErrOpenSessionAlreadyCalled) {
+		t.Fatalf("run() reconnect error = %v, should bypass OpenSession guard", err)
 	}
 }
