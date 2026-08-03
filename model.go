@@ -22,8 +22,9 @@ import (
 )
 
 var (
-	ErrClientIDRequired       = errors.New("ClientID is required")
-	_                   error = new(CantConnectToServerError)
+	ErrClientIDRequired         = errors.New("ClientID is required")
+	ErrStreamNotConnected       = errors.New("stream not connected")
+	_                     error = new(CantConnectToServerError)
 )
 
 type (
@@ -51,8 +52,9 @@ type (
 		muQueryHandlers   sync.RWMutex
 		queryHandlers     map[revent.QueryID]any
 
-		sendCh chan *reventv1.ClientToServerMessage
-		stream grpc.BidiStreamingClient[reventv1.ClientToServerMessage, reventv1.ServerToClientMessage]
+		sendCh   chan *reventv1.ClientToServerMessage
+		muStream sync.RWMutex
+		stream   grpc.BidiStreamingClient[reventv1.ClientToServerMessage, reventv1.ServerToClientMessage]
 	}
 )
 
@@ -134,7 +136,7 @@ func (s *State) connect(ctx context.Context) error {
 			return fmt.Errorf("failed to open session: %w", err)
 		}
 
-		s.stream = stream
+		s.setStream(stream)
 
 		return nil
 	}
@@ -145,7 +147,7 @@ func (s *State) connect(ctx context.Context) error {
 	}
 }
 
-// run initializes the state with the given stream.
+// run initializes the state.
 //
 //nolint:gocognit //TODO: refactor
 func (s *State) run(ctx context.Context) error {
@@ -168,7 +170,12 @@ func (s *State) run(ctx context.Context) error {
 					continue
 				}
 
-				if err := s.stream.Send(m); err != nil {
+				stream := s.getStream()
+				if stream == nil {
+					return ErrStreamNotConnected
+				}
+
+				if err := stream.Send(m); err != nil {
 					return fmt.Errorf("failed to send stream message: %w", err)
 				}
 			}
@@ -177,6 +184,11 @@ func (s *State) run(ctx context.Context) error {
 
 	g.Go(func() error {
 		for {
+			stream := s.getStream()
+			if stream == nil {
+				return ErrStreamNotConnected
+			}
+
 			msg, errRecv := s.stream.Recv()
 			if errRecv != nil {
 				// Recv is bound to the stream context and will unblock on cancellation.
@@ -218,6 +230,20 @@ func (s *State) run(ctx context.Context) error {
 	}
 
 	return g.Wait()
+}
+
+func (s *State) setStream(stream grpc.BidiStreamingClient[reventv1.ClientToServerMessage, reventv1.ServerToClientMessage]) {
+	s.muStream.Lock()
+	defer s.muStream.Unlock()
+
+	s.stream = stream
+}
+
+func (s *State) getStream() grpc.BidiStreamingClient[reventv1.ClientToServerMessage, reventv1.ServerToClientMessage] {
+	s.muStream.RLock()
+	defer s.muStream.RUnlock()
+
+	return s.stream
 }
 
 func isContextShutdownError(ctx context.Context, err error) bool {

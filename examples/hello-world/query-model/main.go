@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 
@@ -27,9 +28,14 @@ func run(logger *slog.Logger) error {
 
 	uqh := userQueryHandler{users: make(map[int]user)}
 
-	_ = reventsdkgo.RegisterQueryHandler(s, getUserByID, uqh.GetUserByID)
-	_ = reventsdkgo.RegisterQueryHandler(s, getAllUsers, uqh.GetAllUsers)
-	_ = reventsdkgo.RegisterSourceEventHandler(uqh.OnUserCreatedEvent)
+	errRegisteringHandlers := errors.Join(
+		reventsdkgo.RegisterQueryHandler(s, getUserByID, uqh.GetUserByID),
+		reventsdkgo.RegisterQueryHandler(s, getAllUsers, uqh.GetAllUsers),
+		reventsdkgo.RegisterSourceEventHandler(uqh.OnUserCreatedEvent),
+	)
+	if errRegisteringHandlers != nil {
+		return fmt.Errorf("failed to register R-Event query and event handlers: %w", errRegisteringHandlers)
+	}
 
 	if err := reventsdkgo.OpenSession(ctx, s); err != nil {
 		logger.ErrorContext(ctx, "Failed to open session", slog.Any("clientID", clientID), slog.Any("error", err))
