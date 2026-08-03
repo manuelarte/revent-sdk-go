@@ -75,6 +75,15 @@ func (s *State) Send(msg *reventv1.ClientToServerMessage) error {
 	return stream.Send(msg)
 }
 
+func (s *State) RegisterClient(clientID string) error {
+	stream := s.getStream()
+	if stream == nil {
+		return errors.New("stream is not connected")
+	}
+
+	return stream.RegisterClient(clientID, s.getQueryHandlerIDs())
+}
+
 func (s *State) WaitForClientRegistration(ctx context.Context) (flow.ClientRegistrationResponse, error) {
 	for {
 		select {
@@ -159,8 +168,7 @@ func (s *State) listenToStream(ctx context.Context) {
 			}
 		}
 
-		// Receive message from stream
-		msg, err := stream.Recv()
+		event, err := stream.NextEvent(ctx)
 		if err != nil {
 			if ctx.Err() != nil {
 				s.logger.Info("Stream listener context cancelled")
@@ -180,8 +188,7 @@ func (s *State) listenToStream(ctx context.Context) {
 			continue
 		}
 
-		// Process the received message
-		s.handleStreamMessage(msg)
+		s.handleStreamEvent(event)
 	}
 }
 
@@ -283,27 +290,29 @@ func (s *State) connect(ctx context.Context) error {
 	}
 }
 
-// handleStreamMessage processes a message received from the stream.
-func (s *State) handleStreamMessage(msg *reventv1.ServerToClientMessage) {
-	if msg == nil {
+// handleStreamEvent processes a typed event received from the transport.
+func (s *State) handleStreamEvent(event TxRxEvent) {
+	if event == nil {
 		return
 	}
 
-	s.logger.Debug("Received message from stream", "message", msg)
+	s.logger.Debug("Received event from stream", "event", formatTxRxEvent(event))
 
-	switch payload := msg.Payload.(type) {
-	case *reventv1.ServerToClientMessage_ClientRegistered:
+	switch payload := event.(type) {
+	case ClientRegisteredEvent:
 		s.notifyClientRegistration(flow.ClientRegistrationResponse{
-			ClientID: payload.ClientRegistered.GetClientId(),
+			ClientID: payload.ClientID,
 		})
-	case *reventv1.ServerToClientMessage_ClientRegistrationError:
+	case ClientRegistrationErrorEvent:
 		s.notifyClientRegistration(flow.ClientRegistrationResponse{
-			ClientID: payload.ClientRegistrationError.GetClientId(),
+			ClientID: payload.ClientID,
 			Err: flow.ClientRegistrationRejectedError{
-				ClientID: payload.ClientRegistrationError.GetClientId(),
-				Reason:   payload.ClientRegistrationError.GetReason(),
+				ClientID: payload.ClientID,
+				Reason:   payload.Reason,
 			},
 		})
+	case UnhandledServerMessageEvent:
+		// Other message types are handled by other flows.
 	default:
 		// Other message types are handled by other flows.
 	}
@@ -340,6 +349,18 @@ func (s *State) setConn(conn *grpc.ClientConn) {
 	defer s.mu.Unlock()
 
 	s.conn = conn
+}
+
+func (s *State) getQueryHandlerIDs() []string {
+	s.muQueryHandlers.RLock()
+	defer s.muQueryHandlers.RUnlock()
+
+	queryHandlers := make([]string, 0, len(s.queryHandlers))
+	for queryID := range s.queryHandlers {
+		queryHandlers = append(queryHandlers, string(queryID))
+	}
+
+	return queryHandlers
 }
 
 func (s *State) getConn() *grpc.ClientConn {

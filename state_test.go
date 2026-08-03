@@ -37,6 +37,36 @@ func (f *fakeBidiStream) Recv() (*reventv1.ServerToClientMessage, error) {
 	return f.recvFn()
 }
 
+func (f *fakeBidiStream) NextEvent(context.Context) (TxRxEvent, error) {
+	msg, err := f.Recv()
+	if err != nil {
+		return nil, err
+	}
+
+	switch payload := msg.GetPayload().(type) {
+	case *reventv1.ServerToClientMessage_ClientRegistered:
+		return ClientRegisteredEvent{ClientID: payload.ClientRegistered.GetClientId()}, nil
+	case *reventv1.ServerToClientMessage_ClientRegistrationError:
+		return ClientRegistrationErrorEvent{
+			ClientID: payload.ClientRegistrationError.GetClientId(),
+			Reason:   payload.ClientRegistrationError.GetReason(),
+		}, nil
+	default:
+		return UnhandledServerMessageEvent{Message: msg}, nil
+	}
+}
+
+func (f *fakeBidiStream) RegisterClient(clientID string, queryHandlers []string) error {
+	return f.Send(&reventv1.ClientToServerMessage{
+		Payload: &reventv1.ClientToServerMessage_RegisterClient{
+			RegisterClient: &reventv1.RegisterClient{
+				ClientId:      clientID,
+				QueryHandlers: queryHandlers,
+			},
+		},
+	})
+}
+
 func TestStateStartStopsOnContextCancelBeforeStart(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
@@ -216,19 +246,13 @@ func TestOpenSessionSecondCallDoesNotStartAgain(t *testing.T) {
 	}
 }
 
-func TestHandleStreamMessageNotifiesClientRegistered(t *testing.T) {
+func TestHandleStreamEventNotifiesClientRegistered(t *testing.T) {
 	s, err := NewState(DefaultConfig())
 	if err != nil {
 		t.Fatalf("NewState() error = %v, want nil", err)
 	}
 
-	msg := &reventv1.ServerToClientMessage{
-		Payload: &reventv1.ServerToClientMessage_ClientRegistered{
-			ClientRegistered: &reventv1.ClientRegistered{ClientId: s.cfg.ClientID.String()},
-		},
-	}
-
-	s.handleStreamMessage(msg)
+	s.handleStreamEvent(ClientRegisteredEvent{ClientID: s.cfg.ClientID.String()})
 
 	ctx, cancel := context.WithTimeout(t.Context(), 200*time.Millisecond)
 	defer cancel()
@@ -247,22 +271,16 @@ func TestHandleStreamMessageNotifiesClientRegistered(t *testing.T) {
 	}
 }
 
-func TestHandleStreamMessageNotifiesClientRegistrationError(t *testing.T) {
+func TestHandleStreamEventNotifiesClientRegistrationError(t *testing.T) {
 	s, err := NewState(DefaultConfig())
 	if err != nil {
 		t.Fatalf("NewState() error = %v, want nil", err)
 	}
 
-	msg := &reventv1.ServerToClientMessage{
-		Payload: &reventv1.ServerToClientMessage_ClientRegistrationError{
-			ClientRegistrationError: &reventv1.ClientRegistrationError{
-				ClientId: s.cfg.ClientID.String(),
-				Reason:   "invalid client",
-			},
-		},
-	}
-
-	s.handleStreamMessage(msg)
+	s.handleStreamEvent(ClientRegistrationErrorEvent{
+		ClientID: s.cfg.ClientID.String(),
+		Reason:   "invalid client",
+	})
 
 	ctx, cancel := context.WithTimeout(t.Context(), 200*time.Millisecond)
 	defer cancel()

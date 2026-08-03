@@ -6,21 +6,19 @@ import (
 	"log/slog"
 	"testing"
 	"time"
-
-	reventv1 "github.com/manuelarte/revent-sdk-go/internal/api/gRPC/revent/v1"
 )
 
 type fakeRegistrationManager struct {
-	sendErr      error
+	registerErr  error
 	waitResponse ClientRegistrationResponse
 	waitErr      error
-	sent         *reventv1.ClientToServerMessage
+	registeredID string
 }
 
-func (f *fakeRegistrationManager) Send(msg *reventv1.ClientToServerMessage) error {
-	f.sent = msg
+func (f *fakeRegistrationManager) RegisterClient(clientID string) error {
+	f.registeredID = clientID
 
-	return f.sendErr
+	return f.registerErr
 }
 
 func (f *fakeRegistrationManager) WaitForClientRegistration(context.Context) (ClientRegistrationResponse, error) {
@@ -42,17 +40,12 @@ func TestClientRegistrationDoSuccess(t *testing.T) {
 		t.Fatalf("Do() error = %v, want nil", err)
 	}
 
-	if m.sent == nil {
-		t.Fatal("Send() was not called")
+	if m.registeredID == "" {
+		t.Fatal("RegisterClient() was not called")
 	}
 
-	payload := m.sent.GetRegisterClient()
-	if payload == nil {
-		t.Fatal("sent payload is not RegisterClient")
-	}
-
-	if got := payload.GetClientId(); got != "my-client" {
-		t.Fatalf("RegisterClient.ClientId = %q, want %q", got, "my-client")
+	if m.registeredID != "my-client" {
+		t.Fatalf("RegisterClient() clientID = %q, want %q", m.registeredID, "my-client")
 	}
 }
 

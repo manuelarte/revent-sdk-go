@@ -4,14 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
-
-	reventv1 "github.com/manuelarte/revent-sdk-go/internal/api/gRPC/revent/v1"
 	"github.com/manuelarte/revent-sdk-go/logger"
+	"time"
 )
 
 type Manager interface {
-	Send(msg *reventv1.ClientToServerMessage) error
+	RegisterClient(clientID string) error
 	WaitForClientRegistration(ctx context.Context) (ClientRegistrationResponse, error)
 }
 
@@ -49,11 +47,7 @@ func (e ClientRegistrationRejectedError) Error() string {
 }
 
 func (c *ClientRegistration) Do(ctx context.Context, m Manager) error {
-	err := m.Send(&reventv1.ClientToServerMessage{
-		Payload: &reventv1.ClientToServerMessage_RegisterClient{
-			RegisterClient: &reventv1.RegisterClient{ClientId: c.clientID},
-		},
-	})
+	err := m.RegisterClient(c.clientID)
 	if err != nil {
 		return fmt.Errorf("error registering client: %w", err)
 	}
