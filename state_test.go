@@ -145,18 +145,22 @@ func TestListenToStreamMarksDisconnectedOnRecvError(t *testing.T) {
 	}
 	s.setStream(stream)
 	s.setState(connectedState)
+
 	s.streamUpdates <- stream
 
 	done := make(chan struct{})
+
 	go func() {
 		s.listenToStream(ctx)
 		close(done)
 	}()
 
 	deadline := time.After(2 * time.Second)
+
 	for {
 		if got := s.getState(); got == disconnectedState {
 			cancel()
+
 			break
 		}
 
@@ -189,6 +193,7 @@ func TestListenToStreamStopsOnContextCancel(t *testing.T) {
 
 	stream := newFakeBidiStream(ctx)
 	s.setStream(stream)
+
 	s.streamUpdates <- stream
 
 	s.listenToStream(ctx)

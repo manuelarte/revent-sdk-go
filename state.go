@@ -16,6 +16,7 @@ import (
 
 	reventv1 "github.com/manuelarte/revent-sdk-go/internal/api/gRPC/revent/v1"
 	backoff2 "github.com/manuelarte/revent-sdk-go/internal/backoff"
+	"github.com/manuelarte/revent-sdk-go/internal/flow"
 	"github.com/manuelarte/revent-sdk-go/revent"
 )
 
@@ -61,7 +62,10 @@ func NewState(cfg Config) (*State, error) {
 	}, nil
 }
 
-//nolint:gocognit // refactor later
+func (s *State) Send(msg *reventv1.ClientToServerMessage) error {
+	return s.getStream().SendMsg(msg)
+}
+
 func (s *State) start(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -95,6 +99,11 @@ func (s *State) start(ctx context.Context) error {
 				}
 
 				s.logger.Info("Connection manager connected")
+
+				errReg := flow.NewClientRegistration(s.cfg.ClientID.String()).Do(ctx, s)
+				if errReg != nil {
+					s.logger.Error("Failed to register client", "error", errReg)
+				}
 			}
 		}
 	})
@@ -140,6 +149,7 @@ func (s *State) listenToStream(ctx context.Context) {
 			// Mark as disconnected so reconnection is triggered
 			s.setStream(nil)
 			s.setState(disconnectedState)
+
 			stream = nil
 
 			continue
@@ -150,6 +160,7 @@ func (s *State) listenToStream(ctx context.Context) {
 	}
 }
 
+//nolint:gocognit // refactor later
 func (s *State) connect(ctx context.Context) error {
 	if !s.connecting.CompareAndSwap(false, true) {
 		// Another goroutine is already connecting
@@ -226,6 +237,7 @@ func (s *State) connect(ctx context.Context) error {
 		case <-s.streamUpdates:
 		default:
 		}
+
 		s.streamUpdates <- stream
 
 		return nil
@@ -251,7 +263,7 @@ func (s *State) handleStreamMessage(msg *reventv1.ServerToClientMessage) {
 	}
 
 	// TODO: Implement message handling logic
-	s.logger.Debug("Received message from stream", "message", msg)
+	s.logger.Info("Received message from stream", "message", msg)
 }
 
 func (s *State) setStream(
