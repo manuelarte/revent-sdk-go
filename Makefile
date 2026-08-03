@@ -10,4 +10,9 @@ fmt:
 	golangci-lint fmt
 
 test:
-	gotestsum ./...
+	gotestsum $(shell go list ./... | grep -v '/tests/bdd')
+	@$(MAKE) test-bdd
+
+test-bdd:
+	gotestsum ./tests/bdd
+
