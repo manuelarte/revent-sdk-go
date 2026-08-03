@@ -44,9 +44,10 @@ type (
 
 	//go:structinit
 	State struct {
+		// field to check that the this field is only registered once.
+		openSessionCalled atomic.Bool
 		logger            ILogger
 		cfg               Config
-		openSessionCalled atomic.Bool
 		muQueryHandlers   sync.RWMutex
 		queryHandlers     map[revent.QueryID]any
 
@@ -77,9 +78,9 @@ func NewState(cfg Config) (*State, error) {
 	}
 
 	return &State{
+		logger:        slog.Default(),
 		cfg:           cfg,
 		queryHandlers: make(map[revent.QueryID]any),
-		logger:        slog.Default(),
 		// Buffer the first control message so startup does not block if sender exits early.
 		sendCh: make(chan *reventv1.ClientToServerMessage, 1),
 	}, nil
