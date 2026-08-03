@@ -30,7 +30,6 @@ type (
 	}
 
 	TxRx interface {
-		Send(msg *reventv1.ClientToServerMessage) error
 		NextEvent(ctx context.Context) (TxRxEvent, error)
 		RegisterClient(clientID string, queryHandlers []string) error
 	}
@@ -45,10 +44,6 @@ func (ClientRegisteredEvent) isTxRxEvent() {}
 func (ClientRegistrationErrorEvent) isTxRxEvent() {}
 
 func (UnhandledServerMessageEvent) isTxRxEvent() {}
-
-func (g gRPCTxRx) Send(msg *reventv1.ClientToServerMessage) error {
-	return g.stream.Send(msg)
-}
 
 func (g gRPCTxRx) NextEvent(_ context.Context) (TxRxEvent, error) {
 	msg, err := g.stream.Recv()
@@ -70,7 +65,7 @@ func (g gRPCTxRx) NextEvent(_ context.Context) (TxRxEvent, error) {
 }
 
 func (g gRPCTxRx) RegisterClient(clientID string, queryHandlers []string) error {
-	return g.Send(&reventv1.ClientToServerMessage{
+	return g.stream.Send(&reventv1.ClientToServerMessage{
 		Payload: &reventv1.ClientToServerMessage_RegisterClient{
 			RegisterClient: &reventv1.RegisterClient{
 				ClientId:      clientID,

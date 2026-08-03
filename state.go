@@ -66,15 +66,6 @@ func NewState(cfg Config) (*State, error) {
 	}, nil
 }
 
-func (s *State) Send(msg *reventv1.ClientToServerMessage) error {
-	stream := s.getStream()
-	if stream == nil {
-		return errors.New("stream is not connected")
-	}
-
-	return stream.Send(msg)
-}
-
 func (s *State) RegisterClient(clientID string) error {
 	stream := s.getStream()
 	if stream == nil {
