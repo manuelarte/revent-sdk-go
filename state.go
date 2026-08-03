@@ -43,9 +43,9 @@ type State struct {
 	state  ConnectionState
 
 	// Connection lifecycle management
-	stateChangedChan chan ConnectionState
-	muQueryHandlers  sync.RWMutex
-	queryHandlers    map[revent.QueryID]any
+	streamUpdates   chan grpc.BidiStreamingClient[reventv1.ClientToServerMessage, reventv1.ServerToClientMessage]
+	muQueryHandlers sync.RWMutex
+	queryHandlers   map[revent.QueryID]any
 }
 
 func NewState(cfg Config) (*State, error) {
@@ -54,10 +54,10 @@ func NewState(cfg Config) (*State, error) {
 	}
 
 	return &State{
-		logger:           slog.Default(),
-		cfg:              cfg,
-		stateChangedChan: make(chan ConnectionState, 1),
-		queryHandlers:    make(map[revent.QueryID]any),
+		logger:        slog.Default(),
+		cfg:           cfg,
+		streamUpdates: make(chan grpc.BidiStreamingClient[reventv1.ClientToServerMessage, reventv1.ServerToClientMessage], 1),
+		queryHandlers: make(map[revent.QueryID]any),
 	}, nil
 }
 
@@ -99,53 +99,11 @@ func (s *State) start(ctx context.Context) error {
 		}
 	})
 
-	// Goroutine 2: Listens to state changes and manages stream listeners
+	// Goroutine 2: Listens to whichever stream is currently active.
 	g.Go(func() error {
-		var (
-			listenerCtx    context.Context
-			listenerCancel context.CancelFunc
-		)
+		s.listenToStream(ctx)
 
-		for {
-			select {
-			case <-ctx.Done():
-				s.logger.Info("Stream listener manager shutting down")
-
-				if listenerCancel != nil {
-					listenerCancel()
-				}
-
-				return ctx.Err()
-			case state := <-s.stateChangedChan:
-				// If disconnected or connecting, stop current listener
-				if state != connectedState {
-					if listenerCancel != nil {
-						s.logger.Info("Stopping stream listener due to state change", "newState", state)
-						listenerCancel()
-
-						//nolint:ineffassign,wastedassign,fatcontext // false positive
-						listenerCtx = nil
-						listenerCancel = nil
-					}
-
-					continue
-				}
-
-				// If now connected and no listener running, start one
-				if state == connectedState && listenerCancel == nil {
-					s.logger.Info("Starting stream listener")
-
-					listenerCtx, listenerCancel = context.WithCancel(ctx)
-					currentListenerCtx := listenerCtx
-
-					g.Go(func() error {
-						s.listenToStream(currentListenerCtx)
-
-						return nil
-					})
-				}
-			}
-		}
+		return nil
 	})
 
 	return g.Wait()
@@ -153,47 +111,43 @@ func (s *State) start(ctx context.Context) error {
 
 // listenToStream continuously reads from the gRPC stream and processes incoming messages.
 func (s *State) listenToStream(ctx context.Context) {
-	stream := s.getStream()
-	if stream == nil {
-		s.logger.Warn("Stream is nil when starting listener")
-
-		return
-	}
+	var stream grpc.BidiStreamingClient[reventv1.ClientToServerMessage, reventv1.ServerToClientMessage]
 
 	for {
-		select {
-		case <-ctx.Done():
-			s.logger.Info("Stream listener context cancelled")
+		if stream == nil {
+			select {
+			case <-ctx.Done():
+				s.logger.Info("Stream listener context cancelled")
 
-			return
-		default:
+				return
+			case stream = <-s.streamUpdates:
+				s.logger.Info("Stream listener attached to stream")
+			}
 		}
 
 		// Receive message from stream
 		msg, err := stream.Recv()
 		if err != nil {
+			if ctx.Err() != nil {
+				s.logger.Info("Stream listener context cancelled")
+
+				return
+			}
+
 			s.logger.Error("Error receiving message from stream",
 				"error", err,
 			)
 			// Mark as disconnected so reconnection is triggered
+			s.setStream(nil)
 			s.setState(disconnectedState)
+			stream = nil
 
-			return
+			continue
 		}
 
 		// Process the received message
 		s.handleStreamMessage(msg)
 	}
-}
-
-// handleStreamMessage processes a message received from the stream.
-func (s *State) handleStreamMessage(msg *reventv1.ServerToClientMessage) {
-	if msg == nil {
-		return
-	}
-
-	// TODO: Implement message handling logic
-	s.logger.Debug("Received message from stream", "message", msg)
 }
 
 func (s *State) connect(ctx context.Context) error {
@@ -208,6 +162,8 @@ func (s *State) connect(ctx context.Context) error {
 	// Close old connection if it exists
 	oldConn := s.getConn()
 	if oldConn != nil {
+		s.setStream(nil)
+
 		if err := oldConn.Close(); err != nil {
 			s.logger.Warn("Failed to close old gRPC connection", "error", err)
 		}
@@ -265,6 +221,20 @@ func (s *State) connect(ctx context.Context) error {
 		s.setStream(stream)
 		s.setState(connectedState)
 
+		// Keep only the latest stream so a reconnect always wins over stale updates.
+		notified := false
+		for !notified {
+			select {
+			case s.streamUpdates <- stream:
+				notified = true
+			default:
+				select {
+				case <-s.streamUpdates:
+				default:
+				}
+			}
+		}
+
 		return nil
 	}
 
@@ -279,6 +249,16 @@ func (s *State) connect(ctx context.Context) error {
 		Addr:        s.cfg.ServerURL,
 		NumAttempts: maxAttempts,
 	}
+}
+
+// handleStreamMessage processes a message received from the stream.
+func (s *State) handleStreamMessage(msg *reventv1.ServerToClientMessage) {
+	if msg == nil {
+		return
+	}
+
+	// TODO: Implement message handling logic
+	s.logger.Debug("Received message from stream", "message", msg)
 }
 
 func (s *State) setStream(
@@ -321,12 +301,6 @@ func (s *State) setState(state ConnectionState) {
 	}
 
 	s.state = state
-
-	// Non-blocking send to notify state change
-	select {
-	case s.stateChangedChan <- state:
-	default:
-	}
 }
 
 func (s *State) getState() ConnectionState {

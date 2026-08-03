@@ -112,6 +112,7 @@ func TestStateStartReturnsCantConnectWhenRetriesExhausted(t *testing.T) {
 
 	cfg := DefaultConfig()
 	cfg.NumberOfRetries = 1
+	cfg.ServerGRPCPort = 65535
 
 	s, err := NewState(cfg)
 	if err != nil {
@@ -130,19 +131,47 @@ func TestStateStartReturnsCantConnectWhenRetriesExhausted(t *testing.T) {
 }
 
 func TestListenToStreamMarksDisconnectedOnRecvError(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
 	s, err := NewState(DefaultConfig())
 	if err != nil {
 		t.Fatalf("NewState() error = %v, want nil", err)
 	}
 
-	stream := newFakeBidiStream(t.Context())
+	stream := newFakeBidiStream(ctx)
 	stream.recvFn = func() (*reventv1.ServerToClientMessage, error) {
 		return nil, io.EOF
 	}
 	s.setStream(stream)
 	s.setState(connectedState)
+	s.streamUpdates <- stream
 
-	s.listenToStream(t.Context())
+	done := make(chan struct{})
+	go func() {
+		s.listenToStream(ctx)
+		close(done)
+	}()
+
+	deadline := time.After(2 * time.Second)
+	for {
+		if got := s.getState(); got == disconnectedState {
+			cancel()
+			break
+		}
+
+		select {
+		case <-deadline:
+			t.Fatal("listener did not mark state as disconnected")
+		case <-time.After(10 * time.Millisecond):
+		}
+	}
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("listener did not stop after context cancellation")
+	}
 
 	if got := s.getState(); got != disconnectedState {
 		t.Fatalf("state after recv error = %q, want %q", got, disconnectedState)
@@ -159,7 +188,8 @@ func TestListenToStreamStopsOnContextCancel(t *testing.T) {
 	}
 
 	stream := newFakeBidiStream(ctx)
-	s.stream = stream
+	s.setStream(stream)
+	s.streamUpdates <- stream
 
 	s.listenToStream(ctx)
 }
