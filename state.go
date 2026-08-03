@@ -31,6 +31,11 @@ const (
 
 type ConnectionState string
 
+type stateSubscription struct {
+	predicate func(msg *reventv1.ServerToClientMessage) bool
+	ch        chan<- *reventv1.ServerToClientMessage
+}
+
 // State manages a persistent gRPC connection with automatic reconnection
 //
 //go:structinit
@@ -48,6 +53,8 @@ type State struct {
 
 	// Connection lifecycle management
 	streamUpdates   chan TxRx
+	muSubscribers   sync.RWMutex
+	subscribers     map[uuid.UUID]stateSubscription
 	muQueryHandlers sync.RWMutex
 	queryHandlers   map[revent.QueryID]any
 }
@@ -61,6 +68,7 @@ func NewState(cfg Config) (*State, error) {
 		logger:        slog.Default(),
 		cfg:           cfg,
 		streamUpdates: make(chan TxRx, 1),
+		subscribers:   make(map[uuid.UUID]stateSubscription),
 		queryHandlers: make(map[revent.QueryID]any),
 	}, nil
 }
@@ -79,23 +87,19 @@ func (s *State) Subscribe(
 	pred func(msg *reventv1.ServerToClientMessage) bool,
 	ch chan<- *reventv1.ServerToClientMessage,
 ) error {
-	stream := s.getStream()
-	if stream == nil {
-		return errors.New("stream is not connected")
-	}
+	s.muSubscribers.Lock()
+	defer s.muSubscribers.Unlock()
 
-	stream.Subscribe(id, pred, ch)
+	s.subscribers[id] = stateSubscription{predicate: pred, ch: ch}
 
 	return nil
 }
 
 func (s *State) Unsubscribe(id uuid.UUID) error {
-	stream := s.getStream()
-	if stream == nil {
-		return errors.New("stream is not connected")
-	}
+	s.muSubscribers.Lock()
+	defer s.muSubscribers.Unlock()
 
-	stream.Unsubscribe(id)
+	delete(s.subscribers, id)
 
 	return nil
 }
@@ -168,7 +172,7 @@ func (s *State) listenToStream(ctx context.Context) {
 			}
 		}
 
-		err := stream.Pump(ctx)
+		msg, err := stream.Recv(ctx)
 		if err != nil {
 			if ctx.Err() != nil {
 				s.logger.Info("Stream listener context cancelled")
@@ -186,6 +190,35 @@ func (s *State) listenToStream(ctx context.Context) {
 			stream = nil
 
 			continue
+		}
+
+		s.notifySubscribers(msg)
+	}
+}
+
+func (s *State) notifySubscribers(msg *reventv1.ServerToClientMessage) {
+	if msg == nil {
+		return
+	}
+
+	s.muSubscribers.RLock()
+
+	subs := make([]stateSubscription, 0, len(s.subscribers))
+	for _, sub := range s.subscribers {
+		subs = append(subs, sub)
+	}
+
+	s.muSubscribers.RUnlock()
+
+	for _, sub := range subs {
+		if sub.predicate == nil || !sub.predicate(msg) {
+			continue
+		}
+
+		// Never block the receive loop on slow subscribers.
+		select {
+		case sub.ch <- msg:
+		default:
 		}
 	}
 }

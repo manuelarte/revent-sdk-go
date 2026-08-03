@@ -4,11 +4,8 @@ import (
 	"context"
 	"errors"
 	"io"
-	"sync"
 	"testing"
 	"time"
-
-	"github.com/google/uuid"
 
 	reventv1 "github.com/manuelarte/revent-sdk-go/internal/api/gRPC/revent/v1"
 )
@@ -16,14 +13,6 @@ import (
 type fakeBidiStream struct {
 	recvFn func() (*reventv1.ServerToClientMessage, error)
 	sendFn func(*reventv1.ClientToServerMessage) error
-
-	mu          sync.RWMutex
-	subscribers map[uuid.UUID]fakeSubscription
-}
-
-type fakeSubscription struct {
-	predicate func(msg *reventv1.ServerToClientMessage) bool
-	ch        chan<- *reventv1.ServerToClientMessage
 }
 
 func newFakeBidiStream(ctx context.Context) *fakeBidiStream {
@@ -44,53 +33,8 @@ func (f *fakeBidiStream) Send(m *reventv1.ClientToServerMessage) error {
 	return f.sendFn(m)
 }
 
-func (f *fakeBidiStream) Recv() (*reventv1.ServerToClientMessage, error) {
+func (f *fakeBidiStream) Recv(context.Context) (*reventv1.ServerToClientMessage, error) {
 	return f.recvFn()
-}
-
-func (f *fakeBidiStream) Subscribe(
-	id uuid.UUID,
-	pred func(msg *reventv1.ServerToClientMessage) bool,
-	ch chan<- *reventv1.ServerToClientMessage,
-) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-
-	if f.subscribers == nil {
-		f.subscribers = make(map[uuid.UUID]fakeSubscription)
-	}
-
-	f.subscribers[id] = fakeSubscription{predicate: pred, ch: ch}
-}
-
-func (f *fakeBidiStream) Unsubscribe(id uuid.UUID) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-
-	delete(f.subscribers, id)
-}
-
-func (f *fakeBidiStream) Pump(context.Context) error {
-	msg, err := f.Recv()
-	if err != nil {
-		return err
-	}
-
-	f.mu.RLock()
-	defer f.mu.RUnlock()
-
-	for _, sub := range f.subscribers {
-		if sub.predicate == nil || !sub.predicate(msg) {
-			continue
-		}
-
-		select {
-		case sub.ch <- msg:
-		default:
-		}
-	}
-
-	return nil
 }
 
 func (f *fakeBidiStream) RegisterClient(clientID string, queryHandlers []string) error {
