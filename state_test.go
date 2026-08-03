@@ -215,3 +215,64 @@ func TestOpenSessionSecondCallDoesNotStartAgain(t *testing.T) {
 		t.Fatalf("OpenSession() second call error = %v, want nil", err)
 	}
 }
+
+func TestHandleStreamMessageNotifiesClientRegistered(t *testing.T) {
+	s, err := NewState(DefaultConfig())
+	if err != nil {
+		t.Fatalf("NewState() error = %v, want nil", err)
+	}
+
+	msg := &reventv1.ServerToClientMessage{
+		Payload: &reventv1.ServerToClientMessage_ClientRegistered{
+			ClientRegistered: &reventv1.ClientRegistered{ClientId: s.cfg.ClientID.String()},
+		},
+	}
+
+	s.handleStreamMessage(msg)
+
+	ctx, cancel := context.WithTimeout(t.Context(), 200*time.Millisecond)
+	defer cancel()
+
+	resp, err := s.WaitForClientRegistration(ctx)
+	if err != nil {
+		t.Fatalf("WaitForClientRegistration() error = %v, want nil", err)
+	}
+
+	if resp.Err != nil {
+		t.Fatalf("WaitForClientRegistration().Err = %v, want nil", resp.Err)
+	}
+
+	if resp.ClientID != s.cfg.ClientID.String() {
+		t.Fatalf("WaitForClientRegistration().ClientID = %q, want %q", resp.ClientID, s.cfg.ClientID.String())
+	}
+}
+
+func TestHandleStreamMessageNotifiesClientRegistrationError(t *testing.T) {
+	s, err := NewState(DefaultConfig())
+	if err != nil {
+		t.Fatalf("NewState() error = %v, want nil", err)
+	}
+
+	msg := &reventv1.ServerToClientMessage{
+		Payload: &reventv1.ServerToClientMessage_ClientRegistrationError{
+			ClientRegistrationError: &reventv1.ClientRegistrationError{
+				ClientId: s.cfg.ClientID.String(),
+				Reason:   "invalid client",
+			},
+		},
+	}
+
+	s.handleStreamMessage(msg)
+
+	ctx, cancel := context.WithTimeout(t.Context(), 200*time.Millisecond)
+	defer cancel()
+
+	resp, err := s.WaitForClientRegistration(ctx)
+	if err != nil {
+		t.Fatalf("WaitForClientRegistration() error = %v, want nil", err)
+	}
+
+	if resp.Err == nil {
+		t.Fatal("WaitForClientRegistration().Err = nil, want error")
+	}
+}

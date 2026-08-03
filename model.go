@@ -6,9 +6,8 @@ import (
 )
 
 var (
-	ErrClientIDRequired         = errors.New("ClientID is required")
-	ErrStreamNotConnected       = errors.New("stream not connected")
-	_                     error = new(CantConnectToServerError)
+	ErrClientIDRequired       = errors.New("ClientID is required")
+	_                   error = new(CantConnectToServerError)
 )
 
 type (
@@ -18,13 +17,6 @@ type (
 	CantConnectToServerError struct {
 		Addr        string
 		NumAttempts int
-	}
-
-	ILogger interface {
-		Info(msg string, args ...any)
-		Error(msg string, args ...any)
-		Warn(msg string, args ...any)
-		Debug(msg string, args ...any)
 	}
 )
 

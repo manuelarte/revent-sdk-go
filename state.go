@@ -2,6 +2,7 @@ package revent_sdk_go
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -17,6 +18,7 @@ import (
 	reventv1 "github.com/manuelarte/revent-sdk-go/internal/api/gRPC/revent/v1"
 	backoff2 "github.com/manuelarte/revent-sdk-go/internal/backoff"
 	"github.com/manuelarte/revent-sdk-go/internal/flow"
+	"github.com/manuelarte/revent-sdk-go/logger"
 	"github.com/manuelarte/revent-sdk-go/revent"
 )
 
@@ -32,7 +34,7 @@ type ConnectionState string
 //
 //go:structinit
 type State struct {
-	logger ILogger
+	logger logger.ILogger
 	cfg    Config
 	// field to check that the client is connecting to R-Event.
 	connecting atomic.Bool
@@ -44,9 +46,10 @@ type State struct {
 	state  ConnectionState
 
 	// Connection lifecycle management
-	streamUpdates   chan TxRx
-	muQueryHandlers sync.RWMutex
-	queryHandlers   map[revent.QueryID]any
+	streamUpdates               chan TxRx
+	clientRegistrationResponses chan flow.ClientRegistrationResponse
+	muQueryHandlers             sync.RWMutex
+	queryHandlers               map[revent.QueryID]any
 }
 
 func NewState(cfg Config) (*State, error) {
@@ -55,20 +58,37 @@ func NewState(cfg Config) (*State, error) {
 	}
 
 	return &State{
-		logger:        slog.Default(),
-		cfg:           cfg,
-		streamUpdates: make(chan TxRx, 1),
-		queryHandlers: make(map[revent.QueryID]any),
+		logger:                      slog.Default(),
+		cfg:                         cfg,
+		streamUpdates:               make(chan TxRx, 1),
+		clientRegistrationResponses: make(chan flow.ClientRegistrationResponse, 1),
+		queryHandlers:               make(map[revent.QueryID]any),
 	}, nil
 }
 
 func (s *State) Send(msg *reventv1.ClientToServerMessage) error {
 	stream := s.getStream()
 	if stream == nil {
-		return fmt.Errorf("stream is not connected")
+		return errors.New("stream is not connected")
 	}
 
 	return stream.Send(msg)
+}
+
+func (s *State) WaitForClientRegistration(ctx context.Context) (flow.ClientRegistrationResponse, error) {
+	for {
+		select {
+		case <-ctx.Done():
+			return flow.ClientRegistrationResponse{}, ctx.Err()
+		case response := <-s.clientRegistrationResponses:
+			// Ignore responses for other clients if multiple registrations race.
+			if response.ClientID != "" && response.ClientID != s.cfg.ClientID.String() {
+				continue
+			}
+
+			return response, nil
+		}
+	}
 }
 
 func (s *State) start(ctx context.Context) error {
@@ -105,7 +125,7 @@ func (s *State) start(ctx context.Context) error {
 
 				s.logger.Info("Connection manager connected")
 
-				errReg := flow.NewClientRegistration(s.cfg.ClientID.String()).Do(ctx, s)
+				errReg := flow.NewClientRegistration(s.logger, s.cfg.ClientID.String()).Do(ctx, s)
 				if errReg != nil {
 					s.logger.Error("Failed to register client", "error", errReg)
 				}
@@ -269,8 +289,34 @@ func (s *State) handleStreamMessage(msg *reventv1.ServerToClientMessage) {
 		return
 	}
 
-	// TODO: Implement message handling logic
-	s.logger.Info("Received message from stream", "message", msg)
+	s.logger.Debug("Received message from stream", "message", msg)
+
+	switch payload := msg.Payload.(type) {
+	case *reventv1.ServerToClientMessage_ClientRegistered:
+		s.notifyClientRegistration(flow.ClientRegistrationResponse{
+			ClientID: payload.ClientRegistered.GetClientId(),
+		})
+	case *reventv1.ServerToClientMessage_ClientRegistrationError:
+		s.notifyClientRegistration(flow.ClientRegistrationResponse{
+			ClientID: payload.ClientRegistrationError.GetClientId(),
+			Err: flow.ClientRegistrationRejectedError{
+				ClientID: payload.ClientRegistrationError.GetClientId(),
+				Reason:   payload.ClientRegistrationError.GetReason(),
+			},
+		})
+	default:
+		// Other message types are handled by other flows.
+	}
+}
+
+func (s *State) notifyClientRegistration(response flow.ClientRegistrationResponse) {
+	// Keep only the latest registration response in the 1-slot channel.
+	select {
+	case <-s.clientRegistrationResponses:
+	default:
+	}
+
+	s.clientRegistrationResponses <- response
 }
 
 func (s *State) setStream(
