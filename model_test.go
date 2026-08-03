@@ -154,7 +154,10 @@ func TestStateRunStopsOnRecvEOF(t *testing.T) {
 		return nil, io.EOF
 	}
 
-	s, err := NewState(DefaultConfig())
+	cfg := DefaultConfig()
+	cfg.NumberOfRetries = 1
+
+	s, err := NewState(cfg)
 	if err != nil {
 		t.Fatalf("NewState() error = %v, want nil", err)
 	}
