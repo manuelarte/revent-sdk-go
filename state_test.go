@@ -7,8 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"google.golang.org/grpc/metadata"
-
 	reventv1 "github.com/manuelarte/revent-sdk-go/internal/api/gRPC/revent/v1"
 )
 
@@ -37,30 +35,6 @@ func (f *fakeBidiStream) Send(m *reventv1.ClientToServerMessage) error {
 
 func (f *fakeBidiStream) Recv() (*reventv1.ServerToClientMessage, error) {
 	return f.recvFn()
-}
-
-func (f *fakeBidiStream) Header() (metadata.MD, error) {
-	return metadata.MD{}, nil
-}
-
-func (f *fakeBidiStream) Trailer() metadata.MD {
-	return metadata.MD{}
-}
-
-func (f *fakeBidiStream) CloseSend() error {
-	return nil
-}
-
-func (f *fakeBidiStream) Context() context.Context {
-	return context.Background()
-}
-
-func (f *fakeBidiStream) SendMsg(any) error {
-	return nil
-}
-
-func (f *fakeBidiStream) RecvMsg(any) error {
-	return nil
 }
 
 func TestStateStartStopsOnContextCancelBeforeStart(t *testing.T) {

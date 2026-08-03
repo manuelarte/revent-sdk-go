@@ -40,11 +40,11 @@ type State struct {
 	once   sync.Once
 	mu     sync.RWMutex
 	conn   *grpc.ClientConn
-	stream grpc.BidiStreamingClient[reventv1.ClientToServerMessage, reventv1.ServerToClientMessage]
+	stream TxRx
 	state  ConnectionState
 
 	// Connection lifecycle management
-	streamUpdates   chan grpc.BidiStreamingClient[reventv1.ClientToServerMessage, reventv1.ServerToClientMessage]
+	streamUpdates   chan TxRx
 	muQueryHandlers sync.RWMutex
 	queryHandlers   map[revent.QueryID]any
 }
@@ -57,13 +57,18 @@ func NewState(cfg Config) (*State, error) {
 	return &State{
 		logger:        slog.Default(),
 		cfg:           cfg,
-		streamUpdates: make(chan grpc.BidiStreamingClient[reventv1.ClientToServerMessage, reventv1.ServerToClientMessage], 1),
+		streamUpdates: make(chan TxRx, 1),
 		queryHandlers: make(map[revent.QueryID]any),
 	}, nil
 }
 
 func (s *State) Send(msg *reventv1.ClientToServerMessage) error {
-	return s.getStream().SendMsg(msg)
+	stream := s.getStream()
+	if stream == nil {
+		return fmt.Errorf("stream is not connected")
+	}
+
+	return stream.Send(msg)
 }
 
 func (s *State) start(ctx context.Context) error {
@@ -120,7 +125,7 @@ func (s *State) start(ctx context.Context) error {
 
 // listenToStream continuously reads from the gRPC stream and processes incoming messages.
 func (s *State) listenToStream(ctx context.Context) {
-	var stream grpc.BidiStreamingClient[reventv1.ClientToServerMessage, reventv1.ServerToClientMessage]
+	var stream TxRx
 
 	for {
 		if stream == nil {
@@ -202,7 +207,7 @@ func (s *State) connect(ctx context.Context) error {
 
 	maxAttempts := int(s.cfg.NumberOfRetries)
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
-		stream, err := cc.OpenSession(ctx)
+		gRPCStream, err := cc.OpenSession(ctx)
 		if err != nil {
 			if st, ok := status.FromError(err); ok {
 				if st.Code() == codes.Unavailable {
@@ -228,6 +233,8 @@ func (s *State) connect(ctx context.Context) error {
 		}
 
 		// Connection successful
+		stream := gRPCTxRx{stream: gRPCStream}
+
 		s.setConn(gRPCClientConn)
 		s.setStream(stream)
 		s.setState(connectedState)
@@ -267,7 +274,7 @@ func (s *State) handleStreamMessage(msg *reventv1.ServerToClientMessage) {
 }
 
 func (s *State) setStream(
-	stream grpc.BidiStreamingClient[reventv1.ClientToServerMessage, reventv1.ServerToClientMessage],
+	stream TxRx,
 ) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -275,7 +282,7 @@ func (s *State) setStream(
 	s.stream = stream
 }
 
-func (s *State) getStream() grpc.BidiStreamingClient[reventv1.ClientToServerMessage, reventv1.ServerToClientMessage] {
+func (s *State) getStream() TxRx {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
