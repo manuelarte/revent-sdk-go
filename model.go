@@ -214,6 +214,17 @@ func (s *State) run(ctx context.Context) error {
 		}
 	})
 
+	err := s.registerClient(ctx)
+	if isContextShutdownError(ctx, err) {
+		cancel()
+
+		return nil
+	}
+
+	return g.Wait()
+}
+
+func (s *State) registerClient(ctx context.Context) (err error) {
 	registerMsg := &reventv1.ClientToServerMessage{
 		Payload: &reventv1.ClientToServerMessage_RegisterClient{
 			RegisterClient: &reventv1.RegisterClient{
@@ -225,11 +236,11 @@ func (s *State) run(ctx context.Context) error {
 
 	select {
 	case <-ctx.Done():
-		return nil
+		return ctx.Err()
 	case s.sendCh <- registerMsg:
 	}
 
-	return g.Wait()
+	return nil
 }
 
 func (s *State) setStream(stream grpc.BidiStreamingClient[reventv1.ClientToServerMessage, reventv1.ServerToClientMessage]) {
