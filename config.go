@@ -8,7 +8,7 @@ import (
 	"google.golang.org/grpc/backoff"
 )
 
-const defaultMaxNumberOfRetries = 4
+const defaultMaxNumberOfRetries = 10
 
 var (
 	ErrNumberOfRetries = errors.New("NumberOfRetries must be greater than 0 and lower than 10")

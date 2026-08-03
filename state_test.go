@@ -79,7 +79,7 @@ func TestStateRunStopsOnContextCancelBeforeRun(t *testing.T) {
 
 	go func() {
 		s.stream = newFakeBidiStream(ctx)
-		done <- s.run(ctx)
+		done <- s.start(ctx)
 	}()
 
 	select {
@@ -137,7 +137,7 @@ func TestStateRunReturnsRecvError(t *testing.T) {
 
 	s.stream = stream
 
-	err = s.run(ctx)
+	err = s.start(ctx)
 	if err == nil {
 		t.Fatal("run() error = nil, want recv error")
 	}
@@ -164,7 +164,7 @@ func TestStateRunStopsOnRecvEOF(t *testing.T) {
 
 	s.stream = stream
 
-	err = s.run(ctx)
+	err = s.start(ctx)
 
 	var actualErr CantConnectToServerError
 	if ok := errors.As(err, &actualErr); !ok {
@@ -186,7 +186,7 @@ func TestStateRunStopsOnRecvContextCanceledError(t *testing.T) {
 
 	s.stream = stream
 
-	err = s.run(ctx)
+	err = s.start(ctx)
 	if err != nil {
 		t.Fatalf("run() error = %v, want nil", err)
 	}
@@ -206,9 +206,9 @@ func TestStateRunStopsOnRecvGRPCCanceledStatus(t *testing.T) {
 
 	s.stream = stream
 
-	err = s.run(ctx)
+	err = s.start(ctx)
 	if err != nil {
-		t.Fatalf("run() error = %v, want nil", err)
+		t.Fatalf("start() error = %v, want nil", err)
 	}
 }
 
@@ -254,9 +254,9 @@ func TestStateRunSendsRegisterClientMessage(t *testing.T) {
 
 	s.stream = stream
 
-	err = s.run(ctx)
+	err = s.start(ctx)
 	if err != nil {
-		t.Fatalf("run() error = %v, want nil", err)
+		t.Fatalf("start() error = %v, want nil", err)
 	}
 
 	select {

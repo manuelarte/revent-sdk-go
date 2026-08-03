@@ -11,12 +11,15 @@ import (
 var ErrOpenSessionAlreadyCalled = errors.New("OpenSession can only be called once per state")
 
 // OpenSession starts a session and can be called only once per State instance.
-func OpenSession(ctx context.Context, state *State) error {
-	if !state.openSessionCalled.CompareAndSwap(false, true) {
-		return ErrOpenSessionAlreadyCalled
+func OpenSession(ctx context.Context, s *State) error {
+	var err error
+	s.once.Do(func() {
+		err = s.start(ctx)
+	})
+	if err != nil {
+		return err
 	}
-
-	return state.init(ctx)
+	return nil
 }
 
 // RegisterQueryHandler registers a query handler for a specific query ID.

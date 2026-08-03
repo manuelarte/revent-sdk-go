@@ -37,8 +37,8 @@ func run(logger *slog.Logger) error {
 		return fmt.Errorf("failed to register R-Event query and event handlers: %w", errRegisteringHandlers)
 	}
 
-	if err := reventsdkgo.OpenSession(ctx, s); err != nil {
-		logger.ErrorContext(ctx, "Failed to open session", slog.Any("clientID", clientID), slog.Any("error", err))
+	if errSession := reventsdkgo.OpenSession(ctx, s); errSession != nil {
+		logger.ErrorContext(ctx, "Failed to open session", slog.Any("clientID", clientID), slog.Any("error", errSession))
 	}
 
 	// add http server with endpoint to ask for users by id
