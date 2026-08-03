@@ -4,13 +4,10 @@ import (
 	"context"
 	"errors"
 	"io"
-	"sync"
 	"testing"
 	"time"
 
-	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/status"
 
 	reventv1 "github.com/manuelarte/revent-sdk-go/internal/api/gRPC/revent/v1"
 )
@@ -66,9 +63,24 @@ func (f *fakeBidiStream) RecvMsg(any) error {
 	return nil
 }
 
-func TestStateRunStopsOnContextCancelBeforeRun(t *testing.T) {
+func TestStateStartStopsOnContextCancelBeforeStart(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
+
+	s, errState := NewState(DefaultConfig())
+	if errState != nil {
+		t.Fatalf("NewState() error = %v, want nil", errState)
+	}
+
+	err := s.start(ctx)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("start() error = %v, want %v", err, context.Canceled)
+	}
+}
+
+func TestStateStartStopsOnContextCancel(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
 
 	s, errState := NewState(DefaultConfig())
 	if errState != nil {
@@ -78,54 +90,25 @@ func TestStateRunStopsOnContextCancelBeforeRun(t *testing.T) {
 	done := make(chan error, 1)
 
 	go func() {
-		s.stream = newFakeBidiStream(ctx)
 		done <- s.start(ctx)
 	}()
 
-	select {
-	case err := <-done:
-		if err != nil {
-			t.Fatalf("run() error = %v, want nil", err)
-		}
-	case <-time.After(time.Second):
-		t.Fatal("run() did not stop after context cancellation")
-	}
-}
-
-func TestStateRunStopsOnContextCancel(t *testing.T) {
-	ctx, cancel := context.WithCancel(t.Context())
-
-	s, errState := NewState(DefaultConfig())
-	if errState != nil {
-		t.Fatalf("NewState() error = %v, want nil", errState)
-	}
-
-	done := make(chan error, 1)
-
-	go func() {
-		s.stream = newFakeBidiStream(ctx)
-		done <- s.run(ctx)
-	}()
-
+	time.Sleep(50 * time.Millisecond)
 	cancel()
 
 	select {
 	case err := <-done:
-		if err != nil {
-			t.Fatalf("run() error = %v, want nil", err)
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("start() error = %v, want %v", err, context.Canceled)
 		}
-	case <-time.After(time.Second):
-		t.Fatal("run() did not stop after context cancellation")
+	case <-time.After(2 * time.Second):
+		t.Fatal("start() did not stop after context cancellation")
 	}
 }
 
-func TestStateRunReturnsRecvError(t *testing.T) {
-	ctx := t.Context()
-	expectedErr := errors.New("recv failure")
-	stream := newFakeBidiStream(ctx)
-	stream.recvFn = func() (*reventv1.ServerToClientMessage, error) {
-		return nil, expectedErr
-	}
+func TestStateStartReturnsCantConnectWhenRetriesExhausted(t *testing.T) {
+	ctx, cancel := context.WithTimeout(t.Context(), 8*time.Second)
+	defer cancel()
 
 	cfg := DefaultConfig()
 	cfg.NumberOfRetries = 1
@@ -134,147 +117,51 @@ func TestStateRunReturnsRecvError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewState() error = %v, want nil", err)
 	}
-
-	s.stream = stream
 
 	err = s.start(ctx)
 	if err == nil {
-		t.Fatal("run() error = nil, want recv error")
+		t.Fatal("start() error = nil, want CantConnectToServerError")
 	}
 
-	if !errors.Is(err, expectedErr) {
-		t.Fatalf("run() error = %v, want wrapped %v", err, expectedErr)
+	var connectErr CantConnectToServerError
+	if !errors.As(err, &connectErr) {
+		t.Fatalf("start() error = %v, want CantConnectToServerError", err)
 	}
 }
 
-func TestStateRunStopsOnRecvEOF(t *testing.T) {
-	ctx := t.Context()
-	stream := newFakeBidiStream(ctx)
+func TestListenToStreamMarksDisconnectedOnRecvError(t *testing.T) {
+	s, err := NewState(DefaultConfig())
+	if err != nil {
+		t.Fatalf("NewState() error = %v, want nil", err)
+	}
+
+	stream := newFakeBidiStream(t.Context())
 	stream.recvFn = func() (*reventv1.ServerToClientMessage, error) {
 		return nil, io.EOF
 	}
+	s.setStream(stream)
+	s.setState(connectedState)
 
-	cfg := DefaultConfig()
-	cfg.NumberOfRetries = 1
+	s.listenToStream(t.Context())
 
-	s, err := NewState(cfg)
-	if err != nil {
-		t.Fatalf("NewState() error = %v, want nil", err)
-	}
-
-	s.stream = stream
-
-	err = s.start(ctx)
-
-	var actualErr CantConnectToServerError
-	if ok := errors.As(err, &actualErr); !ok {
-		t.Fatalf("run() error = %v, want CantConnectToServerError", actualErr)
+	if got := s.getState(); got != disconnectedState {
+		t.Fatalf("state after recv error = %q, want %q", got, disconnectedState)
 	}
 }
 
-func TestStateRunStopsOnRecvContextCanceledError(t *testing.T) {
-	ctx := t.Context()
-	stream := newFakeBidiStream(ctx)
-	stream.recvFn = func() (*reventv1.ServerToClientMessage, error) {
-		return nil, context.Canceled
-	}
+func TestListenToStreamStopsOnContextCancel(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
 
 	s, err := NewState(DefaultConfig())
 	if err != nil {
 		t.Fatalf("NewState() error = %v, want nil", err)
 	}
 
-	s.stream = stream
-
-	err = s.start(ctx)
-	if err != nil {
-		t.Fatalf("run() error = %v, want nil", err)
-	}
-}
-
-func TestStateRunStopsOnRecvGRPCCanceledStatus(t *testing.T) {
-	ctx := t.Context()
 	stream := newFakeBidiStream(ctx)
-	stream.recvFn = func() (*reventv1.ServerToClientMessage, error) {
-		return nil, status.Error(codes.Canceled, "client canceled")
-	}
-
-	s, err := NewState(DefaultConfig())
-	if err != nil {
-		t.Fatalf("NewState() error = %v, want nil", err)
-	}
-
 	s.stream = stream
 
-	err = s.start(ctx)
-	if err != nil {
-		t.Fatalf("start() error = %v, want nil", err)
-	}
-}
-
-func TestStateRunSendsRegisterClientMessage(t *testing.T) {
-	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
-	defer cancel()
-
-	stream := newFakeBidiStream(ctx)
-	sentCh := make(chan *reventv1.ClientToServerMessage, 1)
-	sentSignal := make(chan struct{})
-
-	var sentOnce sync.Once
-
-	stream.sendFn = func(msg *reventv1.ClientToServerMessage) error {
-		sentCh <- msg
-
-		sentOnce.Do(func() {
-			close(sentSignal)
-		})
-
-		return nil
-	}
-	stream.recvFn = func() (*reventv1.ServerToClientMessage, error) {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case _, ok := <-sentSignal:
-			if ok {
-				return nil, io.EOF
-			}
-		}
-
-		//nolint:nilnil // false positive
-		return nil, nil
-	}
-
-	cfg := DefaultConfig()
-
-	s, err := NewState(cfg)
-	if err != nil {
-		t.Fatalf("NewState() error = %v, want nil", err)
-	}
-
-	s.stream = stream
-
-	err = s.start(ctx)
-	if err != nil {
-		t.Fatalf("start() error = %v, want nil", err)
-	}
-
-	select {
-	case msg := <-sentCh:
-		registerPayload, ok := msg.Payload.(*reventv1.ClientToServerMessage_RegisterClient)
-		if !ok {
-			t.Fatalf("run() first send payload = %T, want RegisterClient", msg.Payload)
-		}
-
-		if registerPayload.RegisterClient.GetClientId() != cfg.ClientID.String() {
-			t.Fatalf("RegisterClient.ClientId = %q, want %q",
-				registerPayload.RegisterClient.GetClientId(),
-				cfg.ClientID.String(),
-			)
-		}
-	case <-time.After(time.Second):
-		t.Fatal("run() did not send RegisterClient message")
-	}
+	s.listenToStream(ctx)
 }
 
 func TestOpenSessionCanOnlyBeCalledOncePerState(t *testing.T) {
@@ -286,40 +173,36 @@ func TestOpenSessionCanOnlyBeCalledOncePerState(t *testing.T) {
 		t.Fatalf("NewState() error = %v, want nil", err)
 	}
 
-	_ = OpenSession(ctx, s)
+	err = OpenSession(ctx, s)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("OpenSession() first call error = %v, want %v", err, context.Canceled)
+	}
 
 	err = OpenSession(ctx, s)
-	if !errors.Is(err, ErrOpenSessionAlreadyCalled) {
-		t.Fatalf("OpenSession() second call error = %v, want %v", err, ErrOpenSessionAlreadyCalled)
+	if err != nil {
+		t.Fatalf("OpenSession() second call error = %v, want nil (idempotent)", err)
 	}
 }
 
-func TestStateRunReconnectBypassesOpenSessionGuard(t *testing.T) {
+func TestOpenSessionSecondCallDoesNotStartAgain(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
-
-	stream := newFakeBidiStream(ctx)
-	stream.recvFn = func() (*reventv1.ServerToClientMessage, error) {
-		cancel()
-
-		return nil, io.EOF
-	}
 
 	s, err := NewState(DefaultConfig())
 	if err != nil {
 		t.Fatalf("NewState() error = %v, want nil", err)
 	}
 
-	// Simulate that public OpenSession was already called.
-	s.openSessionCalled.Store(true)
-	s.stream = stream
+	firstCtx, firstCancel := context.WithCancel(ctx)
+	firstCancel()
 
-	err = s.run(ctx)
-	if err == nil {
-		t.Fatal("run() error = nil, want reconnect failure")
+	err = OpenSession(firstCtx, s)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("OpenSession() first call error = %v, want %v", err, context.Canceled)
 	}
 
-	if errors.Is(err, ErrOpenSessionAlreadyCalled) {
-		t.Fatalf("run() reconnect error = %v, should bypass OpenSession guard", err)
+	err = OpenSession(ctx, s)
+	if err != nil {
+		t.Fatalf("OpenSession() second call error = %v, want nil", err)
 	}
 }

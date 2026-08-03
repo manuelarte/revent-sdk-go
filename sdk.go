@@ -13,12 +13,15 @@ var ErrOpenSessionAlreadyCalled = errors.New("OpenSession can only be called onc
 // OpenSession starts a session and can be called only once per State instance.
 func OpenSession(ctx context.Context, s *State) error {
 	var err error
+
 	s.once.Do(func() {
 		err = s.start(ctx)
 	})
+
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 

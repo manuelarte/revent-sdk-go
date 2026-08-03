@@ -61,6 +61,7 @@ func NewState(cfg Config) (*State, error) {
 	}, nil
 }
 
+//nolint:gocognit // refactor later
 func (s *State) start(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -78,6 +79,7 @@ func (s *State) start(ctx context.Context) error {
 			select {
 			case <-ctx.Done():
 				s.logger.Info("Connection manager shutting down")
+
 				return ctx.Err()
 			case <-ticker.C:
 				if s.getState() != disconnectedState {
@@ -85,10 +87,13 @@ func (s *State) start(ctx context.Context) error {
 				}
 
 				s.logger.Debug("Connection manager trying to connect")
+
 				if err := s.connect(ctx); err != nil {
 					s.logger.Error("Failed to connect", "error", err)
+
 					return err
 				}
+
 				s.logger.Info("Connection manager connected")
 			}
 		}
@@ -105,9 +110,11 @@ func (s *State) start(ctx context.Context) error {
 			select {
 			case <-ctx.Done():
 				s.logger.Info("Stream listener manager shutting down")
+
 				if listenerCancel != nil {
 					listenerCancel()
 				}
+
 				return ctx.Err()
 			case state := <-s.stateChangedChan:
 				// If disconnected or connecting, stop current listener
@@ -115,19 +122,25 @@ func (s *State) start(ctx context.Context) error {
 					if listenerCancel != nil {
 						s.logger.Info("Stopping stream listener due to state change", "newState", state)
 						listenerCancel()
+
+						//nolint:ineffassign,wastedassign,fatcontext // false positive
 						listenerCtx = nil
 						listenerCancel = nil
 					}
+
 					continue
 				}
 
 				// If now connected and no listener running, start one
 				if state == connectedState && listenerCancel == nil {
 					s.logger.Info("Starting stream listener")
+
 					listenerCtx, listenerCancel = context.WithCancel(ctx)
 					currentListenerCtx := listenerCtx
+
 					g.Go(func() error {
 						s.listenToStream(currentListenerCtx)
+
 						return nil
 					})
 				}
@@ -138,11 +151,12 @@ func (s *State) start(ctx context.Context) error {
 	return g.Wait()
 }
 
-// listenToStream continuously reads from the gRPC stream and processes incoming messages
+// listenToStream continuously reads from the gRPC stream and processes incoming messages.
 func (s *State) listenToStream(ctx context.Context) {
 	stream := s.getStream()
 	if stream == nil {
 		s.logger.Warn("Stream is nil when starting listener")
+
 		return
 	}
 
@@ -150,6 +164,7 @@ func (s *State) listenToStream(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			s.logger.Info("Stream listener context cancelled")
+
 			return
 		default:
 		}
@@ -162,6 +177,7 @@ func (s *State) listenToStream(ctx context.Context) {
 			)
 			// Mark as disconnected so reconnection is triggered
 			s.setState(disconnectedState)
+
 			return
 		}
 
@@ -170,7 +186,7 @@ func (s *State) listenToStream(ctx context.Context) {
 	}
 }
 
-// handleStreamMessage processes a message received from the stream
+// handleStreamMessage processes a message received from the stream.
 func (s *State) handleStreamMessage(msg *reventv1.ServerToClientMessage) {
 	if msg == nil {
 		return
@@ -210,6 +226,7 @@ func (s *State) connect(ctx context.Context) error {
 	)
 	if errClient != nil {
 		s.setState(disconnectedState)
+
 		return fmt.Errorf("failed to instantiate GRPC client: %w", errClient)
 	}
 
@@ -228,15 +245,18 @@ func (s *State) connect(ctx context.Context) error {
 					)
 
 					time.Sleep(expBackoff.Backoff(attempt))
+
 					continue
 				}
 			}
 
 			// For non-retryable errors, close connection and fail
-			if err := gRPCClientConn.Close(); err != nil {
-				s.logger.Warn("Failed to close gRPC connection after session error", "error", err)
+			if errClose := gRPCClientConn.Close(); errClose != nil {
+				s.logger.Warn("Failed to close gRPC connection after session error", "error", errClose)
 			}
+
 			s.setState(disconnectedState)
+
 			return fmt.Errorf("failed to open session: %w", err)
 		}
 
@@ -252,14 +272,18 @@ func (s *State) connect(ctx context.Context) error {
 	if err := gRPCClientConn.Close(); err != nil {
 		s.logger.Warn("Failed to close gRPC connection after max retries", "error", err)
 	}
+
 	s.setState(disconnectedState)
+
 	return CantConnectToServerError{
 		Addr:        s.cfg.ServerURL,
 		NumAttempts: maxAttempts,
 	}
 }
 
-func (s *State) setStream(stream grpc.BidiStreamingClient[reventv1.ClientToServerMessage, reventv1.ServerToClientMessage]) {
+func (s *State) setStream(
+	stream grpc.BidiStreamingClient[reventv1.ClientToServerMessage, reventv1.ServerToClientMessage],
+) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -310,18 +334,4 @@ func (s *State) getState() ConnectionState {
 	defer s.mu.RUnlock()
 
 	return s.state
-}
-
-// Stop gracefully shuts down the connection manager
-func (s *State) Stop() error {
-	conn := s.getConn()
-	if conn != nil {
-		return conn.Close()
-	}
-	return nil
-}
-
-// IsConnected returns whether the client is currently connected
-func (s *State) IsConnected() bool {
-	return s.getState() == connectedState
 }
