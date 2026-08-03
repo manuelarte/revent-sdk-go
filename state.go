@@ -221,19 +221,12 @@ func (s *State) connect(ctx context.Context) error {
 		s.setStream(stream)
 		s.setState(connectedState)
 
-		// Keep only the latest stream so a reconnect always wins over stale updates.
-		notified := false
-		for !notified {
-			select {
-			case s.streamUpdates <- stream:
-				notified = true
-			default:
-				select {
-				case <-s.streamUpdates:
-				default:
-				}
-			}
+		// Keep only the latest stream notification in the 1-slot channel.
+		select {
+		case <-s.streamUpdates:
+		default:
 		}
+		s.streamUpdates <- stream
 
 		return nil
 	}
