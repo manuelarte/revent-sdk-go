@@ -88,14 +88,18 @@ func (s *serverInfo) startServer(ctx context.Context) error {
 }
 
 func (s *serverInfo) restartServer(ctx context.Context) error {
-	terminateCtx, terminateCancel := context.WithTimeout(ctx, 5*time.Second)
-	_ = s.container.Terminate(terminateCtx)
+	stopCtx, stopCancel := context.WithTimeout(ctx, 10*time.Second)
+	defer stopCancel()
 
-	terminateCancel()
+	if err := s.container.Stop(stopCtx, nil); err != nil {
+		return fmt.Errorf("error stopping container: %w", err)
+	}
 
-	time.Sleep(500 * time.Millisecond) // Give some time for the container to terminate before starting a new one.
+	if err := s.container.Start(ctx); err != nil {
+		return fmt.Errorf("error starting container: %w", err)
+	}
 
-	return s.startServer(ctx)
+	return nil
 }
 
 // getFreePort asks the kernel for a free open port that is ready to use.

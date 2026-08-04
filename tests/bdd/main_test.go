@@ -51,7 +51,6 @@ func initializeScenario(ctx *godog.ScenarioContext) {
 		}
 		cfg.ServerURL = "127.0.0.1"
 		cfg.ServerGRPCPort = 65535
-		cfg.NumberOfRetries = 1
 
 		s.serverInfo = nil
 		s.cfg = cfg
