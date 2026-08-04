@@ -3,9 +3,11 @@ package bdd
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/cucumber/godog"
 	"github.com/google/uuid"
+	grpcbackoff "google.golang.org/grpc/backoff"
 
 	reventsdkgo "github.com/manuelarte/revent-sdk-go"
 	reventv1 "github.com/manuelarte/revent-sdk-go/internal/api/gRPC/revent/v1"
@@ -38,8 +40,21 @@ func initializeScenario(ctx *godog.ScenarioContext) {
 	s := &scenarioState{}
 
 	ctx.Before(func(ctx context.Context, _ *godog.Scenario) (context.Context, error) {
+		cfg := reventsdkgo.DefaultConfig()
+		cfg.ClientID = reventsdkgo.ClientID("bdd-" + uuid.NewString())
+		cfg.NumberOfRetries = 3
+		cfg.BackoffCfg = grpcbackoff.Config{
+			BaseDelay:  10 * time.Millisecond,
+			Multiplier: 1,
+			Jitter:     0,
+			MaxDelay:   25 * time.Millisecond,
+		}
+		cfg.ServerURL = "127.0.0.1"
+		cfg.ServerGRPCPort = 65535
+		cfg.NumberOfRetries = 1
+
 		s.serverInfo = nil
-		s.cfg = reventsdkgo.Config{}
+		s.cfg = cfg
 		s.state = nil
 		s.openSessionCancel = nil
 		s.subID = uuid.New()
@@ -68,12 +83,10 @@ func initializeScenario(ctx *godog.ScenarioContext) {
 		return ctx, err
 	})
 
-	ctx.Step(`^the server is running$`, s.theServerIsRunning)
-	ctx.Step(`^a SDK state$`, s.aSDKState)
 	ctx.Step(`^I open the SDK session$`, s.iOpenTheSDKSession)
-	ctx.Step(`^the client should be registered by the server$`, s.theClientShouldBeRegisteredByTheServer)
 	ctx.Step(`^I cancel the SDK session context$`, s.iCancelTheSDKSessionContext)
+	ctx.Step(`^the client should be registered by the server$`, s.theClientShouldBeRegisteredByTheServer)
+	ctx.Step(`^the server is running$`, s.theServerIsRunning)
 	ctx.Step(`^the session should finish with context canceled$`, s.openSessionShouldFinishWithContextCanceled)
-	ctx.Step(`^the server restarts$`, s.theServerRestarts)
-	ctx.Step(`^session should fail with CantConnectToServerError$`, s.sessionShouldFailWithCantConnectToServerError)
+	ctx.Step(`^the session should fail with CantConnectToServerError$`, s.sessionShouldFailWithCantConnectToServerError)
 }
