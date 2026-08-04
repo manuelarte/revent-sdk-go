@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+	grpcbackoff "google.golang.org/grpc/backoff"
 
 	reventsdkgo "github.com/manuelarte/revent-sdk-go"
 	reventv1 "github.com/manuelarte/revent-sdk-go/internal/api/gRPC/revent/v1"
@@ -88,10 +89,21 @@ func (s *scenarioState) theServerIsRunning(ctx context.Context) (context.Context
 func (s *scenarioState) aSDKState(ctx context.Context) (context.Context, error) {
 	cfg := reventsdkgo.DefaultConfig()
 	cfg.ClientID = reventsdkgo.ClientID("bdd-" + uuid.NewString())
+	cfg.NumberOfRetries = 3
+	cfg.BackoffCfg = grpcbackoff.Config{
+		BaseDelay:  10 * time.Millisecond,
+		Multiplier: 1,
+		Jitter:     0,
+		MaxDelay:   25 * time.Millisecond,
+	}
 	if s.serverInfo != nil {
 		cfg.ServerURL = s.serverInfo.host
 		cfg.ServerGRPCPort = s.serverInfo.grpcPort
 		cfg.ServerRestPort = s.serverInfo.restPort
+	} else {
+		cfg.ServerURL = "127.0.0.1"
+		cfg.ServerGRPCPort = 65535
+		cfg.NumberOfRetries = 1
 	}
 
 	state, err := reventsdkgo.NewState(cfg)
@@ -124,6 +136,7 @@ func (s *scenarioState) iOpenTheSDKSession(ctx context.Context) (context.Context
 func (s *scenarioState) openSessionShouldFinishWithContextCanceled(ctx context.Context) (context.Context, error) {
 	select {
 	case err := <-s.openSessionErrCh:
+		s.openSessionCancel = nil
 		if !errors.Is(err, context.Canceled) {
 			return ctx, fmt.Errorf("expected OpenSession to finish with context canceled, got: %v", err)
 		}
@@ -131,6 +144,25 @@ func (s *scenarioState) openSessionShouldFinishWithContextCanceled(ctx context.C
 		return ctx, nil
 	case <-time.After(10 * time.Second):
 		return ctx, errors.New("timeout waiting for OpenSession to finish")
+	}
+}
+
+func (s *scenarioState) sessionShouldFailWithCantConnectToServerError(ctx context.Context) (context.Context, error) {
+	select {
+	case err := <-s.openSessionErrCh:
+		s.openSessionCancel = nil
+		if err == nil {
+			return ctx, errors.New("expected OpenSession to fail, got nil")
+		}
+
+		var connectErr reventsdkgo.CantConnectToServerError
+		if !errors.As(err, &connectErr) {
+			return ctx, fmt.Errorf("expected CantConnectToServerError, got: %v", err)
+		}
+
+		return ctx, nil
+	case <-time.After(5 * time.Second):
+		return ctx, errors.New("timeout waiting for OpenSession failure")
 	}
 }
 

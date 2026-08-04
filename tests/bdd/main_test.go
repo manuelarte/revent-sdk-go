@@ -7,6 +7,7 @@ import (
 	"github.com/cucumber/godog"
 	"github.com/google/uuid"
 
+	reventsdkgo "github.com/manuelarte/revent-sdk-go"
 	reventv1 "github.com/manuelarte/revent-sdk-go/internal/api/gRPC/revent/v1"
 )
 
@@ -37,6 +38,10 @@ func initializeScenario(ctx *godog.ScenarioContext) {
 	s := &scenarioState{}
 
 	ctx.Before(func(ctx context.Context, _ *godog.Scenario) (context.Context, error) {
+		s.serverInfo = nil
+		s.cfg = reventsdkgo.Config{}
+		s.state = nil
+		s.openSessionCancel = nil
 		s.subID = uuid.New()
 		s.registrationCh = make(chan *reventv1.ServerToClientMessage, 1)
 		s.openSessionErrCh = make(chan error, 1)
@@ -73,4 +78,5 @@ func initializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^the client should be registered by the server$`, s.theClientShouldBeRegisteredByTheServer)
 	ctx.Step(`^I cancel the SDK session context$`, s.iCancelTheSDKSessionContext)
 	ctx.Step(`^OpenSession should finish with context canceled$`, s.openSessionShouldFinishWithContextCanceled)
+	ctx.Step(`^session should fail with CantConnectToServerError$`, s.sessionShouldFailWithCantConnectToServerError)
 }
