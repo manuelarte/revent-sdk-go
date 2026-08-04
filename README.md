@@ -1,5 +1,8 @@
 # R-Event SDK Go
 
+[![ci](https://github.com/manuelarte/revent-sdk-go/actions/workflows/ci.yml/badge.svg)](https://github.com/manuelarte/revent-sdk-go/actions/workflows/ci.yml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/manuelarte/revent-sdk-go.svg)](https://pkg.go.dev/github.com/manuelarte/revent-sdk-go)
+
 > [!WARNING]
 > R-Event-SDK-Go is under heavy development.
 
