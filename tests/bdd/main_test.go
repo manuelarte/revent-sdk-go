@@ -73,6 +73,7 @@ func initializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^I open the SDK session$`, s.iOpenTheSDKSession)
 	ctx.Step(`^the client should be registered by the server$`, s.theClientShouldBeRegisteredByTheServer)
 	ctx.Step(`^I cancel the SDK session context$`, s.iCancelTheSDKSessionContext)
-	ctx.Step(`^OpenSession should finish with context canceled$`, s.openSessionShouldFinishWithContextCanceled)
+	ctx.Step(`^the session should finish with context canceled$`, s.openSessionShouldFinishWithContextCanceled)
+	ctx.Step(`^the server restarts$`, s.theServerRestarts)
 	ctx.Step(`^session should fail with CantConnectToServerError$`, s.sessionShouldFailWithCantConnectToServerError)
 }

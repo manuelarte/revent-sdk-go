@@ -9,9 +9,17 @@ Feature: Open a session against R-Event
     When I open the SDK session
     Then the client should be registered by the server
     When I cancel the SDK session context
-    Then OpenSession should finish with context canceled
+    Then the session should finish with context canceled
 
   Scenario: Session fails when server is unavailable
     Given a SDK state
     When I open the SDK session
     Then session should fail with CantConnectToServerError
+
+  Scenario: Client connects, gets registered, server restarts and client reconnects
+    Given the server is running
+    And a SDK state
+    When I open the SDK session
+    Then the client should be registered by the server
+    When the server restarts
+    Then the client should be registered by the server

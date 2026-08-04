@@ -163,6 +163,14 @@ func (s *scenarioState) openSessionShouldFinishWithContextCanceled(ctx context.C
 	}
 }
 
+func (s *scenarioState) theServerRestarts(ctx context.Context) (context.Context, error) {
+	if s.serverInfo == nil {
+		return ctx, errors.New("server did not start")
+	}
+	s.serverInfo.cancelSession()
+	return s.theServerIsRunning(ctx)
+}
+
 func (s *scenarioState) sessionShouldFailWithCantConnectToServerError(ctx context.Context) (context.Context, error) {
 	select {
 	case err := <-s.openSessionErrCh:
