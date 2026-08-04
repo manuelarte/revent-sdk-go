@@ -13,3 +13,10 @@ Feature: Open a session against R-Event
   Scenario: Session fails when server is unavailable
     When I open the SDK session
     Then the session should fail with CantConnectToServerError
+
+  Scenario: Client connects, gets registered, server restarts and client reconnects
+    Given the server is running
+    When I open the SDK session
+    Then the client should be registered by the server
+    When the server restarts
+    Then the client should be registered by the server

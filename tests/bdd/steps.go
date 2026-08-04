@@ -40,6 +40,15 @@ func (s *scenarioState) theServerIsRunning(ctx context.Context) (context.Context
 	return ctx, nil
 }
 
+func (s *scenarioState) theServerRestarts(ctx context.Context) (context.Context, error) {
+	err := s.serverInfo.restartServer(ctx)
+	if err != nil {
+		return ctx, fmt.Errorf("error restarting server: %w", err)
+	}
+
+	return ctx, nil
+}
+
 func (s *scenarioState) iOpenTheSDKSession(ctx context.Context) (context.Context, error) {
 	state, err := reventsdkgo.NewState(s.cfg)
 	if err != nil {
