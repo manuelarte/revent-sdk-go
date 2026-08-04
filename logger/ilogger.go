@@ -9,8 +9,7 @@ type ILogger interface {
 
 var _ ILogger = new(EmptyLogger)
 
-type EmptyLogger struct {
-}
+type EmptyLogger struct{}
 
 func (l *EmptyLogger) Info(_ string, _ ...any)  {}
 func (l *EmptyLogger) Error(_ string, _ ...any) {}

@@ -63,17 +63,13 @@ func initializeScenario(ctx *godog.ScenarioContext) {
 			_ = s.serverInfo.container.Terminate(ctx)
 		}
 
+		s.serverInfo = nil
+
 		return ctx, err
 	})
 
-	ctx.Step(
-		`^the server is running$`,
-		s.theServerIsRunning,
-	)
-	ctx.Step(
-		`^a SDK state$`,
-		s.aSDKState,
-	)
+	ctx.Step(`^the server is running$`, s.theServerIsRunning)
+	ctx.Step(`^a SDK state$`, s.aSDKState)
 	ctx.Step(`^I open the SDK session$`, s.iOpenTheSDKSession)
 	ctx.Step(`^the client should be registered by the server$`, s.theClientShouldBeRegisteredByTheServer)
 	ctx.Step(`^I cancel the SDK session context$`, s.iCancelTheSDKSessionContext)

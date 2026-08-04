@@ -1,3 +1,4 @@
+//nolint:mnd // magic numbers related to timeouts.
 package bdd
 
 import (
@@ -21,10 +22,11 @@ const (
 
 type (
 	serverInfo struct {
-		container testcontainers.Container
-		host      string
-		grpcPort  int
-		restPort  int
+		container     testcontainers.Container
+		cancelSession context.CancelFunc
+		host          string
+		grpcPort      int
+		restPort      int
 	}
 )
 
@@ -40,7 +42,9 @@ type scenarioState struct {
 }
 
 func (s *scenarioState) theServerIsRunning(ctx context.Context) (context.Context, error) {
-	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+	cancelCtx, cancel := context.WithCancel(ctx)
+
+	container, err := testcontainers.GenericContainer(cancelCtx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
 			Image:        reventImage,
 			ExposedPorts: []string{"10000/tcp", "10001/tcp"},
@@ -52,11 +56,15 @@ func (s *scenarioState) theServerIsRunning(ctx context.Context) (context.Context
 		Started: true,
 	})
 	if err != nil {
+		cancel()
+
 		return ctx, fmt.Errorf("error starting container: %w", err)
 	}
 
 	host, err := container.Host(ctx)
 	if err != nil {
+		cancel()
+
 		_ = container.Terminate(ctx)
 
 		return ctx, fmt.Errorf("error hosting container: %w", err)
@@ -64,6 +72,8 @@ func (s *scenarioState) theServerIsRunning(ctx context.Context) (context.Context
 
 	grpcPort, err := container.MappedPort(ctx, "10000/tcp")
 	if err != nil {
+		cancel()
+
 		_ = container.Terminate(ctx)
 
 		return ctx, fmt.Errorf("error mapping gRPC port: %w", err)
@@ -71,16 +81,19 @@ func (s *scenarioState) theServerIsRunning(ctx context.Context) (context.Context
 
 	restPort, err := container.MappedPort(ctx, "10001/tcp")
 	if err != nil {
+		cancel()
+
 		_ = container.Terminate(ctx)
 
 		return ctx, fmt.Errorf("error mapping REST port: %w", err)
 	}
 
 	s.serverInfo = &serverInfo{
-		container: container,
-		host:      host,
-		grpcPort:  int(grpcPort.Num()),
-		restPort:  int(restPort.Num()),
+		container:     container,
+		cancelSession: cancel,
+		host:          host,
+		grpcPort:      int(grpcPort.Num()),
+		restPort:      int(restPort.Num()),
 	}
 
 	return ctx, nil
@@ -96,6 +109,7 @@ func (s *scenarioState) aSDKState(ctx context.Context) (context.Context, error) 
 		Jitter:     0,
 		MaxDelay:   25 * time.Millisecond,
 	}
+
 	if s.serverInfo != nil {
 		cfg.ServerURL = s.serverInfo.host
 		cfg.ServerGRPCPort = s.serverInfo.grpcPort
@@ -112,6 +126,7 @@ func (s *scenarioState) aSDKState(ctx context.Context) (context.Context, error) 
 	}
 
 	s.cfg = cfg
+
 	s.state = state
 	if errSubscribing := state.Subscribe(s.subID, func(msg *reventv1.ServerToClientMessage) bool {
 		return true
@@ -137,12 +152,13 @@ func (s *scenarioState) openSessionShouldFinishWithContextCanceled(ctx context.C
 	select {
 	case err := <-s.openSessionErrCh:
 		s.openSessionCancel = nil
+
 		if !errors.Is(err, context.Canceled) {
-			return ctx, fmt.Errorf("expected OpenSession to finish with context canceled, got: %v", err)
+			return ctx, fmt.Errorf("expected OpenSession to finish with context canceled, got: %w", err)
 		}
 
 		return ctx, nil
-	case <-time.After(10 * time.Second):
+	case <-time.After(2 * time.Second):
 		return ctx, errors.New("timeout waiting for OpenSession to finish")
 	}
 }
@@ -151,17 +167,18 @@ func (s *scenarioState) sessionShouldFailWithCantConnectToServerError(ctx contex
 	select {
 	case err := <-s.openSessionErrCh:
 		s.openSessionCancel = nil
+
 		if err == nil {
 			return ctx, errors.New("expected OpenSession to fail, got nil")
 		}
 
 		var connectErr reventsdkgo.CantConnectToServerError
 		if !errors.As(err, &connectErr) {
-			return ctx, fmt.Errorf("expected CantConnectToServerError, got: %v", err)
+			return ctx, fmt.Errorf("expected CantConnectToServerError, got: %w", err)
 		}
 
 		return ctx, nil
-	case <-time.After(5 * time.Second):
+	case <-time.After(2 * time.Second):
 		return ctx, errors.New("timeout waiting for OpenSession failure")
 	}
 }
@@ -188,7 +205,7 @@ func (s *scenarioState) theClientShouldBeRegisteredByTheServer(ctx context.Conte
 		}
 
 		return ctx, nil
-	case <-time.After(10 * time.Second):
+	case <-time.After(2 * time.Second):
 		return ctx, errors.New("timeout waiting for registration confirmation")
 	}
 }
