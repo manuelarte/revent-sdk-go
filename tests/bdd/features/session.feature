@@ -14,4 +14,4 @@ Feature: Open a session against R-Event
   Scenario: Session fails when server is unavailable
     Given a SDK state
     When I open the SDK session
-    Then OpenSession should fail with CantConnectToServerError
+    Then session should fail with CantConnectToServerError
