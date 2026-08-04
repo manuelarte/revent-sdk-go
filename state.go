@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -65,7 +64,7 @@ func NewState(cfg Config) (*State, error) {
 	}
 
 	return &State{
-		logger:        slog.Default(),
+		logger:        cfg.Logger,
 		cfg:           cfg,
 		streamUpdates: make(chan TxRx, 1),
 		subscribers:   make(map[uuid.UUID]stateSubscription),

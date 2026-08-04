@@ -36,16 +36,26 @@ func TestFeatures(t *testing.T) {
 func initializeScenario(ctx *godog.ScenarioContext) {
 	s := &scenarioState{}
 
-	ctx.Before(func(context.Context, *godog.Scenario) (context.Context, error) {
+	ctx.Before(func(ctx context.Context, _ *godog.Scenario) (context.Context, error) {
 		s.subID = uuid.New()
 		s.registrationCh = make(chan *reventv1.ServerToClientMessage, 1)
+		s.openSessionErrCh = make(chan error, 1)
 
-		return context.Background(), nil
+		return ctx, nil
 	})
 
 	ctx.After(func(ctx context.Context, scenario *godog.Scenario, err error) (context.Context, error) {
+		if s.openSessionCancel != nil {
+			s.openSessionCancel()
+			s.openSessionCancel = nil
+		}
+
 		if s.state != nil {
 			_ = s.state.Unsubscribe(s.subID)
+		}
+
+		if s.serverInfo != nil {
+			_ = s.serverInfo.container.Terminate(ctx)
 		}
 
 		return ctx, err
@@ -56,10 +66,11 @@ func initializeScenario(ctx *godog.ScenarioContext) {
 		s.theServerIsRunning,
 	)
 	ctx.Step(
-		`^a configured SDK state$`,
-		s.aConfiguredSDKState,
+		`^a SDK state$`,
+		s.aSDKState,
 	)
 	ctx.Step(`^I open the SDK session$`, s.iOpenTheSDKSession)
 	ctx.Step(`^the client should be registered by the server$`, s.theClientShouldBeRegisteredByTheServer)
 	ctx.Step(`^I cancel the SDK session context$`, s.iCancelTheSDKSessionContext)
+	ctx.Step(`^OpenSession should finish with context canceled$`, s.openSessionShouldFinishWithContextCanceled)
 }

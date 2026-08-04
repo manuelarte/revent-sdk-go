@@ -6,6 +6,8 @@ import (
 	"os"
 
 	"google.golang.org/grpc/backoff"
+
+	"github.com/manuelarte/revent-sdk-go/logger"
 )
 
 const defaultMaxNumberOfRetries = 10
@@ -31,6 +33,8 @@ type Config struct {
 	NumberOfRetries uint
 	// Backoff configuration
 	BackoffCfg backoff.Config
+	// logger interface
+	Logger logger.ILogger
 }
 
 // DefaultConfig returns a default configuration.
@@ -47,6 +51,7 @@ func DefaultConfig() Config {
 		ServerRestPort:  10001,
 		NumberOfRetries: defaultMaxNumberOfRetries,
 		BackoffCfg:      backoff.DefaultConfig,
+		Logger:          &logger.EmptyLogger{},
 	}
 }
 

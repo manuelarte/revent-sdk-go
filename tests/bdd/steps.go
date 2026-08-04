@@ -19,8 +19,6 @@ const (
 )
 
 type (
-	sdkCancelCtxFnKey struct{}
-
 	serverInfo struct {
 		container testcontainers.Container
 		host      string
@@ -34,8 +32,10 @@ type scenarioState struct {
 	cfg        reventsdkgo.Config
 	state      *reventsdkgo.State
 	// we subscribe to every single message to do the checks later on.
-	subID          uuid.UUID
-	registrationCh chan *reventv1.ServerToClientMessage
+	subID             uuid.UUID
+	registrationCh    chan *reventv1.ServerToClientMessage
+	openSessionErrCh  chan error
+	openSessionCancel context.CancelFunc
 }
 
 func (s *scenarioState) theServerIsRunning(ctx context.Context) (context.Context, error) {
@@ -85,7 +85,7 @@ func (s *scenarioState) theServerIsRunning(ctx context.Context) (context.Context
 	return ctx, nil
 }
 
-func (s *scenarioState) aConfiguredSDKState(ctx context.Context) (context.Context, error) {
+func (s *scenarioState) aSDKState(ctx context.Context) (context.Context, error) {
 	cfg := reventsdkgo.DefaultConfig()
 	cfg.ClientID = reventsdkgo.ClientID("bdd-" + uuid.NewString())
 	if s.serverInfo != nil {
@@ -112,13 +112,35 @@ func (s *scenarioState) aConfiguredSDKState(ctx context.Context) (context.Contex
 
 func (s *scenarioState) iOpenTheSDKSession(ctx context.Context) (context.Context, error) {
 	newCancelCtx, cancel := context.WithCancel(ctx)
-	err := reventsdkgo.OpenSession(newCancelCtx, s.state)
-	if err != nil {
-		defer cancel()
-		return ctx, fmt.Errorf("failed to open session: %w", err)
+	s.openSessionCancel = cancel
+
+	go func() {
+		s.openSessionErrCh <- reventsdkgo.OpenSession(newCancelCtx, s.state)
+	}()
+
+	return ctx, nil
+}
+
+func (s *scenarioState) openSessionShouldFinishWithContextCanceled(ctx context.Context) (context.Context, error) {
+	select {
+	case err := <-s.openSessionErrCh:
+		if !errors.Is(err, context.Canceled) {
+			return ctx, fmt.Errorf("expected OpenSession to finish with context canceled, got: %v", err)
+		}
+
+		return ctx, nil
+	case <-time.After(10 * time.Second):
+		return ctx, errors.New("timeout waiting for OpenSession to finish")
+	}
+}
+
+func (s *scenarioState) iCancelTheSDKSessionContext(ctx context.Context) (context.Context, error) {
+	if s.openSessionCancel != nil {
+		s.openSessionCancel()
+		s.openSessionCancel = nil
 	}
 
-	return context.WithValue(ctx, sdkCancelCtxFnKey{}, cancel), nil
+	return ctx, nil
 }
 
 func (s *scenarioState) theClientShouldBeRegisteredByTheServer(ctx context.Context) (context.Context, error) {
@@ -137,12 +159,4 @@ func (s *scenarioState) theClientShouldBeRegisteredByTheServer(ctx context.Conte
 	case <-time.After(10 * time.Second):
 		return ctx, errors.New("timeout waiting for registration confirmation")
 	}
-}
-
-func (s *scenarioState) iCancelTheSDKSessionContext(ctx context.Context) (context.Context, error) {
-	if cancel, ok := ctx.Value(sdkCancelCtxFnKey{}).(context.CancelFunc); ok {
-		cancel()
-	}
-
-	return context.WithValue(ctx, sdkCancelCtxFnKey{}, nil), nil
 }

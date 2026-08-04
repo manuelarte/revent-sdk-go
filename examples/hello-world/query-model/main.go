@@ -19,6 +19,7 @@ func main() {
 func run(logger *slog.Logger) error {
 	ctx := context.Background()
 	cfg := reventsdkgo.DefaultConfig()
+	cfg.Logger = slog.Default()
 	s, err := reventsdkgo.NewState(cfg)
 	if err != nil {
 		return fmt.Errorf("failed to create state: %w", err)
