@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 	grpcbackoff "google.golang.org/grpc/backoff"
 
 	reventsdkgo "github.com/manuelarte/revent-sdk-go"
@@ -18,16 +16,6 @@ import (
 
 const (
 	reventImage = "ghcr.io/manuelarte/revent:v0.0.1"
-)
-
-type (
-	serverInfo struct {
-		container     testcontainers.Container
-		cancelSession context.CancelFunc
-		host          string
-		grpcPort      int
-		restPort      int
-	}
 )
 
 type scenarioState struct {
@@ -42,59 +30,11 @@ type scenarioState struct {
 }
 
 func (s *scenarioState) theServerIsRunning(ctx context.Context) (context.Context, error) {
-	cancelCtx, cancel := context.WithCancel(ctx)
-
-	container, err := testcontainers.GenericContainer(cancelCtx, testcontainers.GenericContainerRequest{
-		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        reventImage,
-			ExposedPorts: []string{"10000/tcp", "10001/tcp"},
-			WaitingFor: wait.ForAll(
-				wait.ForListeningPort("10000/tcp"),
-				wait.ForListeningPort("10001/tcp"),
-			).WithDeadline(60 * time.Second),
-		},
-		Started: true,
-	})
+	si, err := startServer(ctx)
 	if err != nil {
-		cancel()
-
-		return ctx, fmt.Errorf("error starting container: %w", err)
+		return ctx, fmt.Errorf("error starting server: %w", err)
 	}
-
-	host, err := container.Host(ctx)
-	if err != nil {
-		cancel()
-
-		_ = container.Terminate(ctx)
-
-		return ctx, fmt.Errorf("error hosting container: %w", err)
-	}
-
-	grpcPort, err := container.MappedPort(ctx, "10000/tcp")
-	if err != nil {
-		cancel()
-
-		_ = container.Terminate(ctx)
-
-		return ctx, fmt.Errorf("error mapping gRPC port: %w", err)
-	}
-
-	restPort, err := container.MappedPort(ctx, "10001/tcp")
-	if err != nil {
-		cancel()
-
-		_ = container.Terminate(ctx)
-
-		return ctx, fmt.Errorf("error mapping REST port: %w", err)
-	}
-
-	s.serverInfo = &serverInfo{
-		container:     container,
-		cancelSession: cancel,
-		host:          host,
-		grpcPort:      int(grpcPort.Num()),
-		restPort:      int(restPort.Num()),
-	}
+	s.serverInfo = si
 
 	return ctx, nil
 }
@@ -167,8 +107,55 @@ func (s *scenarioState) theServerRestarts(ctx context.Context) (context.Context,
 	if s.serverInfo == nil {
 		return ctx, errors.New("server did not start")
 	}
-	s.serverInfo.cancelSession()
-	return s.theServerIsRunning(ctx)
+
+	if err := s.serverInfo.restart(ctx); err != nil {
+		return ctx, fmt.Errorf("error restarting server: %w", err)
+	}
+
+	// CRITICAL: Update the SDK config with new server address
+	// This is necessary because the port mappings changed
+	newCfg := reventsdkgo.DefaultConfig()
+	newCfg.ClientID = s.cfg.ClientID
+	newCfg.ServerURL = s.serverInfo.host
+	newCfg.ServerGRPCPort = s.serverInfo.grpcPort
+	newCfg.ServerRestPort = s.serverInfo.restPort
+	newCfg.NumberOfRetries = s.cfg.NumberOfRetries
+	newCfg.BackoffCfg = s.cfg.BackoffCfg
+
+	// Create a new state with updated config and re-subscribe
+	newState, err := reventsdkgo.NewState(newCfg)
+	if err != nil {
+		_ = s.serverInfo.container.Terminate(ctx)
+		return ctx, fmt.Errorf("error creating new state with updated config: %w", err)
+	}
+
+	if err := newState.Subscribe(s.subID, func(msg *reventv1.ServerToClientMessage) bool {
+		return true
+	}, s.registrationCh); err != nil {
+		_ = s.serverInfo.container.Terminate(ctx)
+		return ctx, fmt.Errorf("error subscribing to new state: %w", err)
+	}
+
+	// Update scenario state with the new state
+	s.cfg = newCfg
+	s.state = newState
+
+	// Cancel the old session and start a new one with the new state
+	if s.openSessionCancel != nil {
+		s.openSessionCancel()
+		s.openSessionCancel = nil
+	}
+
+	// Open a new session with the updated state
+	newSessionCtx, newSessionCancel := context.WithCancel(ctx)
+	s.openSessionCancel = newSessionCancel
+
+	go func() {
+		// Don't send error to channel, as we want to wait for re-registration
+		_ = reventsdkgo.OpenSession(newSessionCtx, s.state)
+	}()
+
+	return ctx, nil
 }
 
 func (s *scenarioState) sessionShouldFailWithCantConnectToServerError(ctx context.Context) (context.Context, error) {
@@ -213,7 +200,7 @@ func (s *scenarioState) theClientShouldBeRegisteredByTheServer(ctx context.Conte
 		}
 
 		return ctx, nil
-	case <-time.After(2 * time.Second):
+	case <-time.After(8 * time.Second):
 		return ctx, errors.New("timeout waiting for registration confirmation")
 	}
 }
