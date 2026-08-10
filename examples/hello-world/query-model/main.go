@@ -19,6 +19,7 @@ func main() {
 func run(logger *slog.Logger) error {
 	ctx := context.Background()
 	cfg := reventsdkgo.DefaultConfig()
+	cfg.ClientID = cfg.ClientID + "-query"
 	cfg.Logger = logger
 	s, err := reventsdkgo.NewState(cfg)
 	if err != nil {
@@ -43,6 +44,9 @@ func run(logger *slog.Logger) error {
 	}
 
 	// add http server with endpoint to ask for users by id
+	if _, errQueryRequest := reventsdkgo.QueryRequest(ctx, s, getAllUsers, getAllUsersParams{}); errQueryRequest != nil {
+		return fmt.Errorf("failed to send query request: %w", errQueryRequest)
+	}
 
 	return nil
 }

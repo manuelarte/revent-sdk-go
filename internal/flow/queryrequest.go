@@ -21,6 +21,14 @@ type QueryRequest[I revent.QueryRequestParameters, O revent.QueryResponse] struc
 	timeout time.Duration
 }
 
+func NewQueryRequest[I revent.QueryRequestParameters, O revent.QueryResponse](logger logger.ILogger, query revent.Query[I, O]) *QueryRequest[I, O] {
+	return &QueryRequest[I, O]{
+		logger:  logger,
+		queryID: query,
+		timeout: 2 * time.Second,
+	}
+}
+
 type QueryRequestError struct {
 	RequestID string
 	Reason    string

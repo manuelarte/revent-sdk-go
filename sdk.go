@@ -2,7 +2,9 @@ package revent_sdk_go
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/manuelarte/revent-sdk-go/internal/flow"
 	"github.com/manuelarte/revent-sdk-go/revent"
 )
 
@@ -51,4 +53,17 @@ func RegisterQueryHandler[
 func RegisterSourceEventHandler[E revent.Event, S revent.SourceEvent[E]](eh revent.SourceEventHandler[E, S]) error {
 	// TODO: here we need the Client struct and add the event handler for that event id.
 	return nil
+}
+
+func QueryRequest[I revent.QueryRequestParameters, O revent.QueryResponse](ctx context.Context, s *State, query revent.Query[I, O], params I) (O, error) {
+
+	queryRequestFlow := flow.NewQueryRequest(s.logger, query)
+	err := queryRequestFlow.Do(ctx, s)
+	if err != nil {
+		var zero O
+		return zero, fmt.Errorf("error sending query request: %w", err)
+	}
+
+	var zero O
+	return zero, nil
 }

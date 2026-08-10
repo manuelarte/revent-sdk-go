@@ -8,7 +8,7 @@ import (
 
 var (
 	getUserByID revent.Query[getUserByIdQueryParams, getUserByIdQueryResponse] = "examples.GetUserByID"
-	getAllUsers revent.Query[getAllUsersParams, getAllUsersResponse]           = "examples.GetAllUsers"
+	getAllUsers revent.Query[getAllUsersParams, getAllUsersResponse]           = "org.github.manuelarte.users.GetAll"
 )
 
 type (
