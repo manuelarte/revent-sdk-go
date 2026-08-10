@@ -2,13 +2,9 @@ package revent_sdk_go
 
 import (
 	"context"
-	"errors"
 
 	"github.com/manuelarte/revent-sdk-go/revent"
 )
-
-// ErrOpenSessionAlreadyCalled is returned when OpenSession is called more than once for the same State.
-var ErrOpenSessionAlreadyCalled = errors.New("OpenSession can only be called once per state")
 
 // OpenSession starts a session and can be called only once per State instance.
 func OpenSession(ctx context.Context, s *State) error {

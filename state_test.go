@@ -8,6 +8,7 @@ import (
 	"time"
 
 	reventv1 "github.com/manuelarte/revent-sdk-go/internal/api/gRPC/revent/v1"
+	"github.com/manuelarte/revent-sdk-go/revent"
 )
 
 type fakeBidiStream struct {
@@ -35,6 +36,17 @@ func (f *fakeBidiStream) Send(m *reventv1.ClientToServerMessage) error {
 
 func (f *fakeBidiStream) Recv(context.Context) (*reventv1.ServerToClientMessage, error) {
 	return f.recvFn()
+}
+
+func (f *fakeBidiStream) QueryRequest(requestID revent.RequestID, queryID revent.QueryID) error {
+	return f.Send(&reventv1.ClientToServerMessage{
+		Payload: &reventv1.ClientToServerMessage_QueryRequest{
+			QueryRequest: &reventv1.QueryRequest{
+				RequestId: requestID.String(),
+				QueryId:   string(queryID),
+			},
+		},
+	})
 }
 
 func (f *fakeBidiStream) RegisterClient(clientID string, queryHandlers []string) error {

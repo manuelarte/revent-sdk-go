@@ -81,6 +81,15 @@ func (s *State) RegisterClient(clientID string) error {
 	return stream.RegisterClient(clientID, s.getQueryHandlerIDs())
 }
 
+func (s *State) QueryRequest(requestID revent.RequestID, queryID revent.QueryID) error {
+	stream := s.getStream()
+	if stream == nil {
+		return errors.New("stream is not connected")
+	}
+
+	return stream.QueryRequest(requestID, queryID)
+}
+
 func (s *State) Subscribe(
 	id uuid.UUID,
 	pred func(msg *reventv1.ServerToClientMessage) bool,

@@ -129,6 +129,7 @@ linters:
     mnd:
       ignored-numbers:
         - "2"
+        - "6"
         - "10000"
         - "10001"
       ignored-functions:

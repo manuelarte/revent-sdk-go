@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	reventv1 "github.com/manuelarte/revent-sdk-go/internal/api/gRPC/revent/v1"
+	"github.com/manuelarte/revent-sdk-go/revent"
 )
 
 type fakeRegistrationManager struct {
@@ -52,6 +53,10 @@ func (f *fakeRegistrationManager) RegisterClient(clientID string) error {
 	}
 
 	return f.registerErr
+}
+
+func (f *fakeRegistrationManager) QueryRequest(requestID revent.RequestID, queryID revent.QueryID) error {
+	return nil
 }
 
 func TestClientRegistrationDoSuccess(t *testing.T) {

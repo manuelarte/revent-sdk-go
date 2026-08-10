@@ -8,19 +8,10 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/manuelarte/revent-sdk-go/internal"
 	reventv1 "github.com/manuelarte/revent-sdk-go/internal/api/gRPC/revent/v1"
 	"github.com/manuelarte/revent-sdk-go/logger"
 )
-
-type Manager interface {
-	Subscribe(
-		id uuid.UUID,
-		pred func(msg *reventv1.ServerToClientMessage) bool,
-		ch chan<- *reventv1.ServerToClientMessage,
-	) error
-	Unsubscribe(id uuid.UUID) error
-	RegisterClient(clientID string) error
-}
 
 type ClientRegistration struct {
 	logger   logger.ILogger
@@ -49,7 +40,7 @@ func (e ClientRegistrationRejectedError) Error() string {
 	return fmt.Sprintf("client %q registration rejected: %s", e.ClientID, e.Reason)
 }
 
-func (c *ClientRegistration) Do(ctx context.Context, m Manager) error {
+func (c *ClientRegistration) Do(ctx context.Context, m internal.Manager) error {
 	subscriptionID := uuid.New()
 	registrationEvents := make(chan *reventv1.ServerToClientMessage, 1)
 
