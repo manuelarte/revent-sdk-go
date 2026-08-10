@@ -32,7 +32,6 @@ func run(logger *slog.Logger) error {
 
 	errRegisteringHandlers := errors.Join(
 		reventsdkgo.RegisterQueryHandler(s, getUserByID, uqh.GetUserByID),
-		reventsdkgo.RegisterQueryHandler(s, getAllUsers, uqh.GetAllUsers),
 		reventsdkgo.RegisterSourceEventHandler(uqh.OnUserCreatedEvent),
 	)
 	if errRegisteringHandlers != nil {
@@ -42,7 +41,7 @@ func run(logger *slog.Logger) error {
 	if errSession := reventsdkgo.OpenSession(ctx, s); errSession != nil {
 		logger.ErrorContext(ctx, "Failed to open session", slog.Any("clientID", clientID), slog.Any("error", errSession))
 	}
-
+	// this is not executed, reventsdkgo.OpenSession blocks the thread
 	// add http server with endpoint to ask for users by id
 	if _, errQueryRequest := reventsdkgo.QueryRequest(ctx, s, getAllUsers, getAllUsersParams{}); errQueryRequest != nil {
 		return fmt.Errorf("failed to send query request: %w", errQueryRequest)
