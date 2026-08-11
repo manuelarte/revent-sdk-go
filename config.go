@@ -10,32 +10,34 @@ import (
 	"github.com/manuelarte/revent-sdk-go/logger"
 )
 
-const defaultMaxNumberOfRetries = 10
+const defaultMaxNumberOfRetries = 2
 
 var (
 	ErrNumberOfRetries = errors.New("NumberOfRetries must be greater than 0 and lower than 10")
-	ErrServerURL       = errors.New("ServerURL is required")
-	ErrServerGRPCPort  = errors.New("ServerGRPCPort is required")
-	ErrServerRestPort  = errors.New("ServerRestPort is required")
+	ErrGRPCAddress     = errors.New("GRPCAddress is required")
 )
 
-//go:structinit
-type Config struct {
-	// ClientID to be used to register in R-Event.
-	ClientID ClientID
-	// ServerURL R-Event server url.
-	ServerURL string
-	// ServerGRPCPort R-Event gRPC port.
-	ServerGRPCPort int
-	// ServerRestPort R-Event REST port.
-	ServerRestPort int
-	// NumberOfRetries number of retries to connect to R-Event server.
-	NumberOfRetries uint
-	// Backoff configuration
-	BackoffCfg backoff.Config
-	// logger interface
-	Logger logger.ILogger
-}
+type (
+	//go:structinit
+	Config struct {
+		// ClientID to be used to register in R-Event.
+		ClientID ClientID
+		// logger interface
+		Logger logger.ILogger
+		// gRPC config
+		GRPCCfg GrpcConfig
+	}
+
+	//go:structinit
+	GrpcConfig struct {
+		// GRPCAddress R-Event gRPC server.
+		GRPCAddress string
+		// BackoffCfg backoff configuration
+		BackoffCfg backoff.Config
+		// NumberOfRetries number of retries to connect to R-Event server.
+		NumberOfRetries uint
+	}
+)
 
 // DefaultConfig returns a default configuration.
 func DefaultConfig() Config {
@@ -45,18 +47,14 @@ func DefaultConfig() Config {
 	}
 
 	return Config{
-		ClientID:        ClientID(hostname),
-		ServerURL:       "localhost",
-		ServerGRPCPort:  10000,
-		ServerRestPort:  10001,
-		NumberOfRetries: defaultMaxNumberOfRetries,
-		BackoffCfg:      backoff.DefaultConfig,
-		Logger:          &logger.EmptyLogger{},
+		ClientID: ClientID(hostname),
+		Logger:   &logger.EmptyLogger{},
+		GRPCCfg: GrpcConfig{
+			GRPCAddress:     "localhost:10000",
+			BackoffCfg:      backoff.DefaultConfig,
+			NumberOfRetries: defaultMaxNumberOfRetries,
+		},
 	}
-}
-
-func (c Config) GetGRPCAddress() string {
-	return fmt.Sprintf("%s:%d", c.ServerURL, c.ServerGRPCPort)
 }
 
 func (c Config) Validate() error {
@@ -64,19 +62,11 @@ func (c Config) Validate() error {
 		return fmt.Errorf("invalid ClientID: %w", err)
 	}
 
-	if c.ServerURL == "" {
-		return ErrServerURL
+	if c.GRPCCfg.GRPCAddress == "" {
+		return ErrGRPCAddress
 	}
 
-	if c.ServerGRPCPort <= 0 {
-		return ErrServerGRPCPort
-	}
-
-	if c.ServerRestPort <= 0 {
-		return ErrServerRestPort
-	}
-
-	if c.NumberOfRetries == 0 {
+	if c.GRPCCfg.NumberOfRetries == 0 {
 		return ErrNumberOfRetries
 	}
 

@@ -43,9 +43,9 @@ func run(logger *slog.Logger) error {
 	}
 	// this is not executed, reventsdkgo.OpenSession blocks the thread
 	// add http server with endpoint to ask for users by id
-	if _, errQueryRequest := reventsdkgo.QueryRequest(ctx, s, getAllUsers, getAllUsersParams{}); errQueryRequest != nil {
-		return fmt.Errorf("failed to send query request: %w", errQueryRequest)
-	}
+	//if _, errQueryRequest := reventsdkgo.QueryRequest(ctx, s, getAllUsers, getAllUsersParams{}); errQueryRequest != nil {
+	//	return fmt.Errorf("failed to send query request: %w", errQueryRequest)
+	//}
 
 	return nil
 }

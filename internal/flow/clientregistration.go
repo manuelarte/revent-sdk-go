@@ -66,7 +66,7 @@ func (c *ClientRegistration) Do(ctx context.Context, m internal.Manager) error {
 		_ = m.Unsubscribe(subscriptionID)
 	}()
 
-	err = m.RegisterClient(c.clientID)
+	err = m.RegisterClient()
 	if err != nil {
 		return fmt.Errorf("error registering client: %w", err)
 	}
