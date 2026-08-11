@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 
 	reventv1 "github.com/manuelarte/revent-sdk-go/internal/api/gRPC/revent/v1"
-	"github.com/manuelarte/revent-sdk-go/internal/flow"
 	"github.com/manuelarte/revent-sdk-go/logger"
 	"github.com/manuelarte/revent-sdk-go/revent"
 )
@@ -94,14 +93,8 @@ func (s *State) Unsubscribe(id uuid.UUID) error {
 }
 
 // start creates the txRx connection and blocks until the connection is closed.
-func (s *State) start(ctx context.Context) error {
-	onConnected := func() {
-		errReg := flow.NewClientRegistration(s.logger, s.cfg.ClientID.String()).Do(ctx, s)
-		if errReg != nil {
-			s.logger.Error("Failed to register client", "error", errReg)
-		}
-	}
-	txRx, txRxErrChan, err := newGRPCTxRx(ctx, s.logger, s.cfg.GRPCCfg, onConnected, s)
+func (s *State) start(ctx context.Context, createTxRxFn func() (TxRx, <-chan error, error)) error {
+	txRx, txRxErrChan, err := createTxRxFn()
 	if err != nil {
 		return fmt.Errorf("failed to create gRPC TxRx: %w", err)
 	}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/manuelarte/revent-sdk-go/internal/flow"
+	"github.com/manuelarte/revent-sdk-go/internal/txrx"
 	"github.com/manuelarte/revent-sdk-go/revent"
 )
 
@@ -13,7 +14,16 @@ func OpenSession(ctx context.Context, s *State) error {
 	var err error
 
 	s.once.Do(func() {
-		err = s.start(ctx)
+		createTxRxFn := func() (TxRx, <-chan error, error) {
+			onConnected := func() {
+				errReg := flow.NewClientRegistration(s.logger, s.cfg.ClientID.String()).Do(ctx, s)
+				if errReg != nil {
+					s.logger.Error("Failed to register client", "error", errReg)
+				}
+			}
+			return txrx.NewGRPCTxRx(ctx, s.logger, s.cfg.GRPCCfg, onConnected, s)
+		}
+		err = s.start(ctx, createTxRxFn)
 	})
 
 	if err != nil {

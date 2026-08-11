@@ -5,8 +5,7 @@ import (
 )
 
 var (
-	ErrClientIDRequired       = errors.New("ClientID is required")
-	_                   error = new(CantConnectToServerError)
+	ErrClientIDRequired = errors.New("ClientID is required")
 )
 
 type (
