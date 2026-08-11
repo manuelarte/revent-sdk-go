@@ -103,7 +103,7 @@ func (s *State) start(ctx context.Context, createTxRxFn func() (TxRx, <-chan err
 	for {
 		select {
 		case <-ctx.Done():
-			return nil
+			return ctx.Err()
 		case errTxRx := <-txRxErrChan:
 			return fmt.Errorf("gRPC TxRx error: %w", errTxRx)
 		}
