@@ -159,11 +159,12 @@ func NewGRPCTxRx(
 }
 
 func (g *GRPC) Send(m *reventv1.ClientToServerMessage) error {
-	if g.getStream() == nil {
+	stream := g.getStream()
+	if stream == nil {
 		return ErrStreamClosed
 	}
 
-	return g.getStream().Send(m)
+	return stream.Send(m)
 }
 
 func (g *GRPC) connect(ctx context.Context) error {
