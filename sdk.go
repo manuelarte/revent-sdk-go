@@ -21,6 +21,7 @@ func OpenSession(ctx context.Context, s *State) error {
 					s.logger.Error("Failed to register client", "error", errReg)
 				}
 			}
+
 			return txrx.NewGRPCTxRx(ctx, s.logger, s.cfg.GRPCCfg, onConnected, s)
 		}
 		err = s.start(ctx, createTxRxFn)
@@ -65,14 +66,22 @@ func RegisterSourceEventHandler[E revent.Event, S revent.SourceEvent[E]](eh reve
 	return nil
 }
 
-func QueryRequest[I revent.QueryRequestParameters, O revent.QueryResponse](ctx context.Context, s *State, query revent.Query[I, O], params I) (O, error) {
+func QueryRequest[I revent.QueryRequestParameters, O revent.QueryResponse](
+	ctx context.Context,
+	s *State,
+	query revent.Query[I, O],
+	params I,
+) (O, error) {
 	queryRequestFlow := flow.NewQueryRequest(s.logger, query)
+
 	err := queryRequestFlow.Do(ctx, s)
 	if err != nil {
 		var zero O
+
 		return zero, fmt.Errorf("error sending query request: %w", err)
 	}
 
 	var zero O
+
 	return zero, nil
 }

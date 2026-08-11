@@ -9,7 +9,7 @@ import (
 	"github.com/manuelarte/revent-sdk-go/revent"
 )
 
-// testQueryInput implements json.Unmarshaler
+// testQueryInput implements json.Unmarshaler.
 type testQueryInput struct {
 	Value string `json:"value"`
 }
@@ -18,7 +18,7 @@ func (t *testQueryInput) UnmarshalJSON(_ []byte) error {
 	return nil
 }
 
-// testQueryOutput implements json.Marshaler
+// testQueryOutput implements json.Marshaler.
 type testQueryOutput struct {
 	Result string `json:"result"`
 }
@@ -27,7 +27,7 @@ func (t testQueryOutput) MarshalJSON() ([]byte, error) {
 	return []byte(`{"result":""}`), nil
 }
 
-// Test NewState
+// Test NewState.
 func TestNewState(t *testing.T) {
 	cfg := DefaultConfig()
 
@@ -57,7 +57,7 @@ func TestNewStateWithInvalidConfig(t *testing.T) {
 	}
 }
 
-// Test RegisterQueryHandler
+// Test RegisterQueryHandler.
 func TestRegisterQueryHandler(t *testing.T) {
 	s, err := NewState(DefaultConfig())
 	if err != nil {
@@ -86,7 +86,7 @@ func TestRegisterQueryHandler(t *testing.T) {
 	}
 }
 
-// Test OpenSession - basic smoke test
+// Test OpenSession - basic smoke test.
 func TestOpenSessionCanOnlyBeCalledOncePerState(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -98,7 +98,9 @@ func TestOpenSessionCanOnlyBeCalledOncePerState(t *testing.T) {
 
 	// First call with canceled context
 	err = OpenSession(ctx, s)
-	// It will error due to canceled context
+	if err == nil {
+		t.Fatal("OpenSession() first call error = nil, want error for canceled context")
+	}
 
 	// Second call should return nil because sync.Once ensures it's only called once
 	err = OpenSession(ctx, s)

@@ -92,24 +92,6 @@ func (s *State) Unsubscribe(id uuid.UUID) error {
 	return nil
 }
 
-// start creates the txRx connection and blocks until the connection is closed.
-func (s *State) start(ctx context.Context, createTxRxFn func() (TxRx, <-chan error, error)) error {
-	txRx, txRxErrChan, err := createTxRxFn()
-	if err != nil {
-		return fmt.Errorf("failed to create gRPC TxRx: %w", err)
-	}
-	s.txRx = txRx
-
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case errTxRx := <-txRxErrChan:
-			return fmt.Errorf("gRPC TxRx error: %w", errTxRx)
-		}
-	}
-}
-
 func (s *State) Recv(msg *reventv1.ServerToClientMessage) {
 	if msg == nil {
 		return
@@ -133,6 +115,25 @@ func (s *State) Recv(msg *reventv1.ServerToClientMessage) {
 		select {
 		case sub.ch <- msg:
 		default:
+		}
+	}
+}
+
+// start creates the txRx connection and blocks until the connection is closed.
+func (s *State) start(ctx context.Context, createTxRxFn func() (TxRx, <-chan error, error)) error {
+	txRx, txRxErrChan, err := createTxRxFn()
+	if err != nil {
+		return fmt.Errorf("failed to create gRPC TxRx: %w", err)
+	}
+
+	s.txRx = txRx
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case errTxRx := <-txRxErrChan:
+			return fmt.Errorf("gRPC TxRx error: %w", errTxRx)
 		}
 	}
 }

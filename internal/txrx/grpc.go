@@ -92,13 +92,19 @@ func (g GrpcConfig) Validate() error {
 }
 
 // NewGRPCTxRx creates a new gRPC TxRx.
-func NewGRPCTxRx(ctx context.Context, logger logger.ILogger, cfg GrpcConfig, onConnected func(), m internal.Manager) (*GRPC, <-chan error, error) {
+func NewGRPCTxRx(
+	ctx context.Context,
+	logger logger.ILogger,
+	cfg GrpcConfig,
+	onConnected func(),
+	m internal.Manager,
+) (*GRPC, <-chan error, error) {
 	txRx := GRPC{
 		cfg:         cfg,
 		m:           m,
-		onConnected: onConnected,
 		logger:      logger,
 		state:       disconnectedState,
+		onConnected: onConnected,
 	}
 	// launch goroutines to manage the connection
 	// run goroutines for connection management and stream listening
@@ -129,6 +135,7 @@ func NewGRPCTxRx(ctx context.Context, logger logger.ILogger, cfg GrpcConfig, onC
 				}
 
 				txRx.logger.Info("Connected to gRPC server")
+
 				if txRx.onConnected != nil {
 					txRx.onConnected()
 				}
@@ -138,17 +145,21 @@ func NewGRPCTxRx(ctx context.Context, logger logger.ILogger, cfg GrpcConfig, onC
 
 	g.Go(func() error {
 		txRx.listenToStream(ctx)
+
 		return nil
 	})
 
 	errChan := make(chan error, 1)
+
 	go func() {
 		errWait := g.Wait()
 		if errWait != nil {
 			errChan <- errWait
+
 			close(errChan)
 		}
 	}()
+
 	return &txRx, errChan, nil
 }
 
@@ -156,10 +167,10 @@ func (g *GRPC) Send(m *reventv1.ClientToServerMessage) error {
 	if g.getStream() == nil {
 		return ErrStreamClosed
 	}
+
 	return g.getStream().Send(m)
 }
 
-//nolint:gocognit // refactor later
 func (g *GRPC) connect(ctx context.Context) error {
 	if !g.connecting.CompareAndSwap(false, true) {
 		// Another goroutine is already connecting
@@ -251,6 +262,7 @@ func (g *GRPC) connect(ctx context.Context) error {
 func (g *GRPC) listenToStream(ctx context.Context) {
 	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
+
 	for {
 		stream := g.getStream()
 		if stream == nil {
