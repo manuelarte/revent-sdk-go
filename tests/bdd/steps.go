@@ -11,6 +11,7 @@ import (
 
 	reventsdkgo "github.com/manuelarte/revent-sdk-go"
 	reventv1 "github.com/manuelarte/revent-sdk-go/internal/api/gRPC/revent/v1"
+	"github.com/manuelarte/revent-sdk-go/internal/txrx"
 )
 
 const (
@@ -96,7 +97,7 @@ func (s *scenarioState) sessionShouldFailWithCantConnectToServerError(ctx contex
 			return ctx, errors.New("expected OpenSession to fail, got nil")
 		}
 
-		var connectErr reventsdkgo.CantConnectToServerError
+		var connectErr txrx.CantConnectToServerError
 		if !errors.As(err, &connectErr) {
 			return ctx, fmt.Errorf("expected CantConnectToServerError, got: %w", err)
 		}

@@ -42,15 +42,14 @@ func initializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Before(func(ctx context.Context, _ *godog.Scenario) (context.Context, error) {
 		cfg := reventsdkgo.DefaultConfig()
 		cfg.ClientID = reventsdkgo.ClientID("bdd-" + uuid.NewString())
-		cfg.NumberOfRetries = 3
-		cfg.BackoffCfg = grpcbackoff.Config{
+		cfg.GRPCCfg.NumberOfRetries = 3
+		cfg.GRPCCfg.BackoffCfg = grpcbackoff.Config{
 			BaseDelay:  10 * time.Millisecond,
 			Multiplier: 1,
 			Jitter:     0,
 			MaxDelay:   25 * time.Millisecond,
 		}
-		cfg.ServerURL = "127.0.0.1"
-		cfg.ServerGRPCPort = 65535
+		cfg.GRPCCfg.GRPCAddress = "127.0.0.1:65535"
 
 		s.serverInfo = nil
 		s.cfg = cfg

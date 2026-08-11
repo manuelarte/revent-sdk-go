@@ -22,13 +22,10 @@ type serverInfo struct {
 	container testcontainers.Container
 	host      string
 	grpcPort  int
-	restPort  int
 }
 
 func (s *serverInfo) update(cfg *reventsdkgo.Config) {
-	cfg.ServerURL = s.host
-	cfg.ServerGRPCPort = s.grpcPort
-	cfg.ServerRestPort = s.restPort
+	cfg.GRPCCfg.GRPCAddress = fmt.Sprintf("localhost:%d", s.grpcPort)
 }
 
 func startServer(ctx context.Context) (*serverInfo, error) {
@@ -37,14 +34,8 @@ func startServer(ctx context.Context) (*serverInfo, error) {
 		return nil, fmt.Errorf("error getting free port: %w", err)
 	}
 
-	restPort, err := getFreePort()
-	if err != nil {
-		return nil, fmt.Errorf("error getting free port: %w", err)
-	}
-
 	s := &serverInfo{
 		grpcPort: gRPCPort,
-		restPort: restPort,
 	}
 
 	errStart := s.startServer(ctx)
@@ -60,7 +51,6 @@ func (s *serverInfo) startServer(ctx context.Context) error {
 			HostConfigModifier: func(hc *container.HostConfig) {
 				hc.PortBindings = map[network.Port][]network.PortBinding{
 					network.MustParsePort("10000/tcp"): {{HostIP: netip.IPv4Unspecified(), HostPort: strconv.Itoa(s.grpcPort)}},
-					network.MustParsePort("10001/tcp"): {{HostIP: netip.IPv4Unspecified(), HostPort: strconv.Itoa(s.restPort)}},
 				}
 			},
 			WaitingFor: wait.ForAll(
