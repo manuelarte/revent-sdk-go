@@ -260,6 +260,7 @@ func (g *GRPC) connect(ctx context.Context) error {
 
 // listenToStream continuously reads from the gRPC stream and processes incoming messages.
 func (g *GRPC) listenToStream(ctx context.Context) {
+	//nolint:mnd // refactor later
 	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
 

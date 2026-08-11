@@ -17,7 +17,6 @@ type fakeRegistrationManager struct {
 	registerErr    error
 	subscribeErr   error
 	unsubscribeErr error
-	registeredID   string
 	predicate      func(msg *reventv1.ServerToClientMessage) bool
 	ch             chan<- *reventv1.ServerToClientMessage
 	response       *reventv1.ServerToClientMessage
