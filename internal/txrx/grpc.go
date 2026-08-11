@@ -29,10 +29,9 @@ const (
 )
 
 var (
-	ErrNumberOfRetries       = errors.New("NumberOfRetries must be greater than 0 and lower than 10")
-	ErrGRPCAddress           = errors.New("GRPCAddress is required")
-	ErrStreamClosed          = errors.New("stream closed")
-	_                  error = new(CantConnectToServerError)
+	ErrGRPCAddress        = errors.New("GRPCAddress is required")
+	ErrStreamClosed       = errors.New("stream closed")
+	_               error = new(CantConnectToServerError)
 )
 
 type (
@@ -82,10 +81,6 @@ func DefaultGrpcConfig() GrpcConfig {
 func (g GrpcConfig) Validate() error {
 	if g.GRPCAddress == "" {
 		return ErrGRPCAddress
-	}
-
-	if g.NumberOfRetries == 0 {
-		return ErrNumberOfRetries
 	}
 
 	return nil
