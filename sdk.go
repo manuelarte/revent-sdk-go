@@ -56,7 +56,6 @@ func RegisterSourceEventHandler[E revent.Event, S revent.SourceEvent[E]](eh reve
 }
 
 func QueryRequest[I revent.QueryRequestParameters, O revent.QueryResponse](ctx context.Context, s *State, query revent.Query[I, O], params I) (O, error) {
-
 	queryRequestFlow := flow.NewQueryRequest(s.logger, query)
 	err := queryRequestFlow.Do(ctx, s)
 	if err != nil {

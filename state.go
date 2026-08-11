@@ -13,28 +13,28 @@ import (
 	"github.com/manuelarte/revent-sdk-go/revent"
 )
 
-type ConnectionState string
-
-type stateSubscription struct {
-	predicate func(msg *reventv1.ServerToClientMessage) bool
-	ch        chan<- *reventv1.ServerToClientMessage
-}
-
 // State manages a persistent gRPC connection with automatic reconnection
 //
 //go:structinit
-type State struct {
-	logger logger.ILogger
-	cfg    Config
+type (
+	State struct {
+		logger logger.ILogger
+		cfg    Config
 
-	once sync.Once
-	txRx TxRx
+		once sync.Once
+		txRx TxRx
 
-	muSubscribers   sync.RWMutex
-	subscribers     map[uuid.UUID]stateSubscription
-	muQueryHandlers sync.RWMutex
-	queryHandlers   map[revent.QueryID]any
-}
+		muSubscribers   sync.RWMutex
+		subscribers     map[uuid.UUID]stateSubscription
+		muQueryHandlers sync.RWMutex
+		queryHandlers   map[revent.QueryID]any
+	}
+
+	stateSubscription struct {
+		predicate func(msg *reventv1.ServerToClientMessage) bool
+		ch        chan<- *reventv1.ServerToClientMessage
+	}
+)
 
 func NewState(cfg Config) (*State, error) {
 	if err := cfg.Validate(); err != nil {
@@ -117,7 +117,7 @@ func (s *State) start(ctx context.Context) error {
 	}
 }
 
-func (s *State) NotifySubscribers(msg *reventv1.ServerToClientMessage) {
+func (s *State) Recv(msg *reventv1.ServerToClientMessage) {
 	if msg == nil {
 		return
 	}

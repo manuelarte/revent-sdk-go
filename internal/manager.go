@@ -14,8 +14,7 @@ type Manager interface {
 		ch chan<- *reventv1.ServerToClientMessage,
 	) error
 	Unsubscribe(id uuid.UUID) error
-	// TODO: think to change to Recv and the msg
-	NotifySubscribers(msg *reventv1.ServerToClientMessage)
 	RegisterClient() error
 	QueryRequest(requestID revent.RequestID, queryID revent.QueryID) error
+	Recv(msg *reventv1.ServerToClientMessage)
 }

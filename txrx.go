@@ -21,9 +21,9 @@ import (
 )
 
 const (
-	connectedState    = "Connected"
-	connectingState   = "Connecting"
-	disconnectedState = "Disconnected"
+	connectedState    connectionState = "Connected"
+	connectingState   connectionState = "Connecting"
+	disconnectedState connectionState = "Disconnected"
 )
 
 var _ TxRx = new(gRPCTxRx)
@@ -47,13 +47,15 @@ type (
 		NumAttempts int
 	}
 
+	connectionState string
+
 	// gRPCTxRx implements the TxRx interface using gRPC.
 	//go:structinit
 	gRPCTxRx struct {
 		cfg         GrpcConfig
 		m           internal.Manager
 		logger      logger.ILogger
-		state       ConnectionState
+		state       connectionState
 		clientID    ClientID
 		onConnected func()
 
@@ -112,7 +114,6 @@ func newGRPCTxRx(ctx context.Context, logger logger.ILogger, cfg GrpcConfig, onC
 	})
 
 	g.Go(func() error {
-		// TODO: rethink this to call stream.Recv() and send to the manager.
 		txRx.listenToStream(ctx)
 		return nil
 	})
@@ -260,7 +261,7 @@ func (g *gRPCTxRx) listenToStream(ctx context.Context) {
 			continue
 		}
 
-		g.m.NotifySubscribers(msg)
+		g.m.Recv(msg)
 	}
 }
 
@@ -278,7 +279,7 @@ func (g *gRPCTxRx) setConn(conn *grpc.ClientConn) {
 	g.conn = conn
 }
 
-func (g *gRPCTxRx) setState(state ConnectionState) {
+func (g *gRPCTxRx) setState(state connectionState) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
@@ -290,7 +291,7 @@ func (g *gRPCTxRx) setState(state ConnectionState) {
 	g.state = state
 }
 
-func (g *gRPCTxRx) getState() ConnectionState {
+func (g *gRPCTxRx) getState() connectionState {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 
