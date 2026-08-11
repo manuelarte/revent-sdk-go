@@ -42,9 +42,7 @@ func (f *fakeRegistrationManager) Unsubscribe(uuid.UUID) error {
 	return f.unsubscribeErr
 }
 
-func (f *fakeRegistrationManager) RegisterClient(clientID string) error {
-	f.registeredID = clientID
-
+func (f *fakeRegistrationManager) RegisterClient() error {
 	if f.response != nil && (f.predicate == nil || f.predicate(f.response)) {
 		select {
 		case f.ch <- f.response:
@@ -57,6 +55,10 @@ func (f *fakeRegistrationManager) RegisterClient(clientID string) error {
 
 func (f *fakeRegistrationManager) QueryRequest(requestID revent.RequestID, queryID revent.QueryID) error {
 	return nil
+}
+
+func (f *fakeRegistrationManager) Recv(msg *reventv1.ServerToClientMessage) {
+	// No-op for testing
 }
 
 func TestClientRegistrationDoSuccess(t *testing.T) {
@@ -72,14 +74,6 @@ func TestClientRegistrationDoSuccess(t *testing.T) {
 	err := registration.Do(t.Context(), m)
 	if err != nil {
 		t.Fatalf("Do() error = %v, want nil", err)
-	}
-
-	if m.registeredID == "" {
-		t.Fatal("RegisterClient() was not called")
-	}
-
-	if m.registeredID != "my-client" {
-		t.Fatalf("RegisterClient() clientID = %q, want %q", m.registeredID, "my-client")
 	}
 }
 
