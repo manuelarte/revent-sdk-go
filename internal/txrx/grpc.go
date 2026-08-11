@@ -292,8 +292,6 @@ func (g *GRPC) listenToStream(ctx context.Context) {
 			g.setStream(nil)
 			g.setState(disconnectedState)
 
-			stream = nil
-
 			continue
 		}
 
