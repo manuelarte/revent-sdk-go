@@ -4,9 +4,7 @@ import (
 	"errors"
 )
 
-var (
-	ErrClientIDRequired = errors.New("ClientID is required")
-)
+var ErrClientIDRequired = errors.New("ClientID is required")
 
 type (
 	// ClientID defines the client id to register to R-event.
