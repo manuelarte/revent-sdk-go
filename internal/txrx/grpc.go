@@ -124,7 +124,7 @@ func NewGRPCTxRx(
 				txRx.logger.Debug("Connection manager trying to connect")
 
 				if err := txRx.connect(ctx); err != nil {
-					txRx.logger.Error("Failed to connect", "error", err)
+					txRx.logger.Debug("Failed to connect", "error", err)
 
 					return err
 				}
@@ -148,11 +148,13 @@ func NewGRPCTxRx(
 
 	go func() {
 		errWait := g.Wait()
-		if errWait != nil {
+		if errWait != nil &&
+			!errors.Is(errWait, context.Canceled) &&
+			!errors.Is(errWait, context.DeadlineExceeded) {
 			errChan <- errWait
-
-			close(errChan)
 		}
+
+		close(errChan)
 	}()
 
 	return &txRx, errChan, nil
