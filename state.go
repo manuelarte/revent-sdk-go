@@ -129,11 +129,19 @@ func (s *State) start(ctx context.Context, createTxRxFn func() (TxRx, <-chan err
 	}
 
 	s.txRx = txRx
+	incoming := txRx.Incoming()
 
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
+		case msg, ok := <-incoming:
+			if !ok {
+				incoming = nil
+				continue
+			}
+
+			s.Handle(msg)
 		case errTxRx, ok := <-txRxErrChan:
 			if !ok {
 				return nil

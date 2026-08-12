@@ -15,7 +15,6 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 
-	"github.com/manuelarte/revent-sdk-go/internal"
 	reventv1 "github.com/manuelarte/revent-sdk-go/internal/api/gRPC/revent/v1"
 	backoff2 "github.com/manuelarte/revent-sdk-go/internal/backoff"
 	"github.com/manuelarte/revent-sdk-go/logger"
@@ -24,6 +23,7 @@ import (
 
 const (
 	defaultMaxNumberOfRetries                 = 2
+	defaultIncomingBufferSize                 = 64
 	connectedState            connectionState = "Connected"
 	connectingState           connectionState = "Connecting"
 	disconnectedState         connectionState = "Disconnected"
@@ -56,7 +56,7 @@ type (
 	//go:structinit
 	GRPC struct {
 		cfg         GrpcConfig
-		m           internal.ClientManager
+		registrar   clientRegistrar
 		logger      logger.ILogger
 		state       connectionState
 		onConnected func()
@@ -66,6 +66,11 @@ type (
 		conn       *grpc.ClientConn
 		mu         sync.RWMutex
 		stream     grpc.BidiStreamingClient[reventv1.ClientToServerMessage, reventv1.ServerToClientMessage]
+		incoming   chan revent.ServerMessage
+	}
+
+	clientRegistrar interface {
+		RegisterClient(ctx context.Context) error
 	}
 
 	connectionState string
@@ -92,13 +97,14 @@ func NewGRPCTxRx(
 	ctx context.Context,
 	logger logger.ILogger,
 	cfg GrpcConfig,
-	m internal.ClientManager,
+	registrar clientRegistrar,
 ) (*GRPC, <-chan error, error) {
 	txRx := GRPC{
-		cfg:    cfg,
-		m:      m,
-		logger: logger,
-		state:  disconnectedState,
+		cfg:       cfg,
+		registrar: registrar,
+		logger:    logger,
+		state:     disconnectedState,
+		incoming:  make(chan revent.ServerMessage, defaultIncomingBufferSize),
 	}
 	// launch goroutines to manage the connection
 	// run goroutines for connection management and stream listening
@@ -130,7 +136,7 @@ func NewGRPCTxRx(
 
 				txRx.logger.Info("Connected to gRPC server")
 
-				errReg := m.RegisterClient(ctx)
+				errReg := registrar.RegisterClient(ctx)
 				if errReg != nil {
 					txRx.logger.Error("Failed to register client", "error", errReg)
 					return errReg
@@ -148,6 +154,8 @@ func NewGRPCTxRx(
 	errChan := make(chan error, 1)
 
 	go func() {
+		defer close(txRx.incoming)
+
 		errWait := g.Wait()
 		if errWait != nil &&
 			!errors.Is(errWait, context.Canceled) &&
@@ -172,6 +180,10 @@ func (g *GRPC) Send(m revent.ClientMessage) error {
 		return fmt.Errorf("failed to transform message to gRPC: %w", err)
 	}
 	return stream.Send(msg)
+}
+
+func (g *GRPC) Incoming() <-chan revent.ServerMessage {
+	return g.incoming
 }
 
 func (g *GRPC) connect(ctx context.Context) error {
@@ -304,7 +316,16 @@ func (g *GRPC) listenToStream(ctx context.Context) {
 				"error", errCasted,
 			)
 		}
-		g.m.Handle(casted)
+		if casted == nil {
+			continue
+		}
+
+		// Never block stream receiving on slow consumers.
+		select {
+		case g.incoming <- casted:
+		default:
+			g.logger.Warn("Dropping incoming message due to full incoming buffer")
+		}
 	}
 }
 

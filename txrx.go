@@ -11,5 +11,7 @@ type (
 	TxRx interface {
 		// Send sends a message to the server.
 		Send(m revent.ClientMessage) error
+		// Incoming emits server messages received by the transport.
+		Incoming() <-chan revent.ServerMessage
 	}
 )
