@@ -1,9 +1,13 @@
 package revent
 
+import "fmt"
+
 var (
 	_ ClientMessage = new(ClientRegistrationMessage)
 	_ ServerMessage = new(ClientRegisteredMessage)
 )
+
+var _ error = new(ClientRegistrationError)
 
 type (
 	Message any
@@ -33,6 +37,14 @@ type (
 	}
 )
 
+func (e ClientRegistrationError) Error() string {
+	if e.Reason == "" {
+		return fmt.Sprintf("client %q registration rejected", e.ClientID)
+	}
+
+	return fmt.Sprintf("client %q registration rejected: %s", e.ClientID, e.Reason)
+}
+
 func (c ClientRegistrationMessage) clientMessage() {}
 func (c ClientRegisteredMessage) serverMessage()   {}
-func (c ClientRegistrationError) serverMessage()   {}
+func (e ClientRegistrationError) serverMessage()   {}

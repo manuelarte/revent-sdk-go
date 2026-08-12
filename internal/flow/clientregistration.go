@@ -32,19 +32,6 @@ func NewClientRegistration(
 	}
 }
 
-type ClientRegistrationRejectedError struct {
-	ClientID revent.ClientID
-	Reason   string
-}
-
-func (e ClientRegistrationRejectedError) Error() string {
-	if e.Reason == "" {
-		return fmt.Sprintf("client %q registration rejected", e.ClientID)
-	}
-
-	return fmt.Sprintf("client %q registration rejected: %s", e.ClientID, e.Reason)
-}
-
 func (c *ClientRegistration) Do(ctx context.Context, m SendAndSubscribe) error {
 	subscriptionID := uuid.New()
 	registrationEvents := make(chan revent.ServerMessage, 1)
@@ -90,16 +77,14 @@ func (c *ClientRegistration) Do(ctx context.Context, m SendAndSubscribe) error {
 	case msg := <-registrationEvents:
 		switch payload := msg.(type) {
 		case *revent.ClientRegisteredMessage:
-			c.logger.Info("Client registered successfully", "clientID", c.clientID)
-
 			return nil
 		case *revent.ClientRegistrationError:
-			return fmt.Errorf("error registering client: %w", ClientRegistrationRejectedError{
-				ClientID: payload.ClientID,
-				Reason:   payload.Reason,
-			})
+			return payload
 		default:
-			return fmt.Errorf("unexpected registration message: %T", msg)
+			return UnexpectedMsgError{
+				Flow: "ClientRegistration",
+				Msg:  payload,
+			}
 		}
 	}
 }

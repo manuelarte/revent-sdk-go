@@ -66,10 +66,11 @@ type (
 
 		// field to check that the client is connecting to R-Event.
 		connecting atomic.Bool
-		conn       *grpc.ClientConn
-		mu         sync.RWMutex
-		stream     grpc.BidiStreamingClient[reventv1.ClientToServerMessage, reventv1.ServerToClientMessage]
-		incoming   chan revent.ServerMessage
+		/* mu protects fields below */
+		mu       sync.RWMutex
+		conn     *grpc.ClientConn
+		stream   grpc.BidiStreamingClient[reventv1.ClientToServerMessage, reventv1.ServerToClientMessage]
+		incoming chan revent.ServerMessage
 	}
 
 	clientRegistrar interface {
@@ -187,7 +188,7 @@ func (g *GRPC) Send(m revent.ClientMessage) error {
 		return ErrStreamClosed
 	}
 
-	msg, err := TransformClientMessageToGRPC(m)
+	msg, err := transformClientMessageToGRPC(m)
 	if err != nil {
 		return fmt.Errorf("failed to transform message to gRPC: %w", err)
 	}
@@ -393,22 +394,6 @@ func (g *GRPC) getStream() grpc.BidiStreamingClient[reventv1.ClientToServerMessa
 	defer g.mu.RUnlock()
 
 	return g.stream
-}
-
-func transformServerMessageToGRPC(msg *reventv1.ServerToClientMessage) (revent.ServerMessage, error) {
-	switch casted := msg.Payload.(type) {
-	case *reventv1.ServerToClientMessage_ClientRegistered:
-		return &revent.ClientRegisteredMessage{
-			ClientID: revent.ClientID(casted.ClientRegistered.ClientId),
-		}, nil
-	//nolint:nilnil // think about this later.
-	case *reventv1.ServerToClientMessage_Heartbeat:
-		return nil, nil
-	}
-
-	return nil, &UnknownMessageError{
-		msg: nil,
-	}
 }
 
 func (c CantConnectToServerError) Error() string {

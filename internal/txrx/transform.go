@@ -1,19 +1,21 @@
 package txrx
 
 import (
+	"fmt"
+
 	reventv1 "github.com/manuelarte/revent-sdk-go/internal/api/gRPC/revent/v1"
 	"github.com/manuelarte/revent-sdk-go/revent"
 )
 
-type UnknownMessageError struct {
-	msg revent.Message
+type UnknownMsgError struct {
+	Msg revent.Message
 }
 
-func (e *UnknownMessageError) Error() string {
-	return "do not know how to transform msg"
+func (e *UnknownMsgError) Error() string {
+	return fmt.Sprintf("do not know how to transform msg: %T", e.Msg)
 }
 
-func TransformClientMessageToGRPC(msg revent.ClientMessage) (*reventv1.ClientToServerMessage, error) {
+func transformClientMessageToGRPC(msg revent.ClientMessage) (*reventv1.ClientToServerMessage, error) {
 	//nolint:gocritic // more events coming
 	switch msg := msg.(type) {
 	case *revent.ClientRegistrationMessage:
@@ -27,8 +29,28 @@ func TransformClientMessageToGRPC(msg revent.ClientMessage) (*reventv1.ClientToS
 		}, nil
 	}
 
-	return nil, &UnknownMessageError{
-		msg: msg,
+	return nil, &UnknownMsgError{
+		Msg: msg,
+	}
+}
+
+func transformServerMessageToGRPC(msg *reventv1.ServerToClientMessage) (revent.ServerMessage, error) {
+	switch casted := msg.Payload.(type) {
+	case *reventv1.ServerToClientMessage_ClientRegistered:
+		return transformToClientRegistered(casted), nil
+	//nolint:nilnil // think about this later.
+	case *reventv1.ServerToClientMessage_Heartbeat:
+		return nil, nil
+	}
+
+	return nil, &UnknownMsgError{
+		Msg: msg,
+	}
+}
+
+func transformToClientRegistered(msg *reventv1.ServerToClientMessage_ClientRegistered) *revent.ClientRegisteredMessage {
+	return &revent.ClientRegisteredMessage{
+		ClientID: revent.ClientID(msg.ClientRegistered.ClientId),
 	}
 }
 
