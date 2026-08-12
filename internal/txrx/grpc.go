@@ -304,7 +304,7 @@ func (g *GRPC) listenToStream(ctx context.Context) {
 				"error", errCasted,
 			)
 		}
-		g.m.Recv(casted)
+		g.m.Handle(casted)
 	}
 }
 

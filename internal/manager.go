@@ -23,18 +23,14 @@ type (
 		Send(msg revent.ClientMessage) error
 	}
 
-	Receiver interface {
-		Recv(msg revent.ServerMessage)
-	}
-
-	FlowManager interface {
-		RegisterClient(ctx context.Context) error
-		QueryRequest(requestID revent.RequestID, queryID revent.QueryID) error
+	MsgHandler interface {
+		Handle(msg revent.ServerMessage)
 	}
 
 	ClientManager interface {
 		SubscriptionManager
-		Receiver
-		FlowManager
+		MsgHandler
+		RegisterClient(ctx context.Context) error
+		QueryRequest(requestID revent.RequestID, queryID revent.QueryID) error
 	}
 )

@@ -1,4 +1,4 @@
-package revent_sdk_go
+package flow
 
 /*
 // QueryRequest is the flow to send a QueryRequest and wait for the QueryResponse.

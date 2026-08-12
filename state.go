@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/manuelarte/revent-sdk-go/internal/flow"
 	"github.com/manuelarte/revent-sdk-go/logger"
 	"github.com/manuelarte/revent-sdk-go/revent"
 )
@@ -48,11 +49,18 @@ func NewState(cfg Config) (*State, error) {
 }
 
 func (s *State) RegisterClient(ctx context.Context) error {
-	errReg := newClientRegistration(
+	type sendAndSubscribe struct {
+		*State
+		TxRx
+	}
+
+	x := sendAndSubscribe{s, s.txRx}
+
+	errReg := flow.NewClientRegistration(
 		s.logger,
 		s.cfg.ClientID,
 		s.getQueryHandlerIDs(),
-	).do(ctx, s)
+	).Do(ctx, x)
 	if errReg != nil {
 		return fmt.Errorf("failed to register client: %w", errReg)
 	}
@@ -86,7 +94,7 @@ func (s *State) Unsubscribe(id uuid.UUID) error {
 	return nil
 }
 
-func (s *State) Recv(msg revent.ServerMessage) {
+func (s *State) Handle(msg revent.ServerMessage) {
 	if msg == nil {
 		return
 	}

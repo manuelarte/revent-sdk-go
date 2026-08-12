@@ -1,4 +1,4 @@
-package revent_sdk_go
+package flow
 
 import (
 	"context"
@@ -68,7 +68,7 @@ func TestClientRegistrationDoSuccess(t *testing.T) {
 			},
 		},
 	}
-	registration := newClientRegistration(slog.Default(), "my-client")
+	registration := NewClientRegistration(slog.Default(), "my-client")
 
 	err := registration.do(t.Context(), m)
 	if err != nil {
@@ -87,7 +87,7 @@ func TestClientRegistrationDoServerError(t *testing.T) {
 			},
 		},
 	}
-	registration := newClientRegistration(slog.Default(), "my-client")
+	registration := NewClientRegistration(slog.Default(), "my-client")
 
 	err := registration.do(t.Context(), m)
 	if err == nil {
@@ -99,7 +99,7 @@ func TestClientRegistrationDoTimeout(t *testing.T) {
 	m := &fakeRegistrationManager{
 		response: nil,
 	}
-	registration := newClientRegistration(slog.Default(), "my-client")
+	registration := NewClientRegistration(slog.Default(), "my-client")
 	registration.timeout = 10 * time.Millisecond
 
 	err := registration.do(t.Context(), m)
@@ -120,7 +120,7 @@ func TestClientRegistrationDoTimeoutWhenMessageDoesNotMatchPredicate(t *testing.
 			},
 		},
 	}
-	registration := newClientRegistration(slog.Default(), "my-client")
+	registration := NewClientRegistration(slog.Default(), "my-client")
 	registration.timeout = 10 * time.Millisecond
 
 	err := registration.do(t.Context(), m)
