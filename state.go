@@ -7,10 +7,13 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/manuelarte/revent-sdk-go/internal"
 	"github.com/manuelarte/revent-sdk-go/internal/flow"
 	"github.com/manuelarte/revent-sdk-go/logger"
 	"github.com/manuelarte/revent-sdk-go/revent"
 )
+
+var _ internal.ClientManager = new(State)
 
 // State manages a persistent gRPC connection with automatic reconnection
 //
@@ -94,7 +97,38 @@ func (s *State) Unsubscribe(id uuid.UUID) error {
 	return nil
 }
 
-func (s *State) Handle(msg revent.ServerMessage) {
+// start creates the txRx connection and blocks until the connection is closed.
+func (s *State) start(ctx context.Context, createTxRxFn func() (TxRx, <-chan error, error)) error {
+	txRx, txRxErrChan, err := createTxRxFn()
+	if err != nil {
+		return fmt.Errorf("failed to create gRPC TxRx: %w", err)
+	}
+
+	s.txRx = txRx
+	incoming := txRx.Incoming()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case msg, ok := <-incoming:
+			if !ok {
+				incoming = nil
+				continue
+			}
+
+			s.dispatchServerMessage(msg)
+		case errTxRx, ok := <-txRxErrChan:
+			if !ok {
+				return nil
+			}
+
+			return fmt.Errorf("gRPC TxRx error: %w", errTxRx)
+		}
+	}
+}
+
+func (s *State) dispatchServerMessage(msg revent.ServerMessage) {
 	if msg == nil {
 		return
 	}
@@ -117,37 +151,6 @@ func (s *State) Handle(msg revent.ServerMessage) {
 		select {
 		case sub.ch <- msg:
 		default:
-		}
-	}
-}
-
-// start creates the txRx connection and blocks until the connection is closed.
-func (s *State) start(ctx context.Context, createTxRxFn func() (TxRx, <-chan error, error)) error {
-	txRx, txRxErrChan, err := createTxRxFn()
-	if err != nil {
-		return fmt.Errorf("failed to create gRPC TxRx: %w", err)
-	}
-
-	s.txRx = txRx
-	incoming := txRx.Incoming()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case msg, ok := <-incoming:
-			if !ok {
-				incoming = nil
-				continue
-			}
-
-			s.Handle(msg)
-		case errTxRx, ok := <-txRxErrChan:
-			if !ok {
-				return nil
-			}
-
-			return fmt.Errorf("gRPC TxRx error: %w", errTxRx)
 		}
 	}
 }

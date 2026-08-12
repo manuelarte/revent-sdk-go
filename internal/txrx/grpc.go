@@ -55,11 +55,10 @@ type (
 	// GRPC implements the TxRx interface using gRPC.
 	//go:structinit
 	GRPC struct {
-		cfg         GrpcConfig
-		registrar   clientRegistrar
-		logger      logger.ILogger
-		state       connectionState
-		onConnected func()
+		cfg       GrpcConfig
+		registrar clientRegistrar
+		logger    logger.ILogger
+		state     connectionState
 
 		// field to check that the client is connecting to R-Event.
 		connecting atomic.Bool

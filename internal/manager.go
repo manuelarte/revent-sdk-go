@@ -23,13 +23,8 @@ type (
 		Send(msg revent.ClientMessage) error
 	}
 
-	MsgHandler interface {
-		Handle(msg revent.ServerMessage)
-	}
-
 	ClientManager interface {
 		SubscriptionManager
-		MsgHandler
 		RegisterClient(ctx context.Context) error
 		QueryRequest(requestID revent.RequestID, queryID revent.QueryID) error
 	}
