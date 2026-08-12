@@ -92,6 +92,7 @@ func TestOpenSessionCanOnlyBeCalledOncePerState(t *testing.T) {
 	cancel()
 
 	cfg := DefaultConfig()
+
 	s, err := NewState(cfg)
 	if err != nil {
 		t.Fatalf("NewState() error = %v", err)

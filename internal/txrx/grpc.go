@@ -97,6 +97,8 @@ func (g GrpcConfig) Validate() error {
 }
 
 // NewGRPCTxRx creates a new gRPC TxRx.
+//
+//nolint:gocognit // to be refactored later.
 func NewGRPCTxRx(
 	ctx context.Context,
 	logger logger.ILogger,
@@ -148,6 +150,7 @@ func NewGRPCTxRx(
 				errReg := registrar.RegisterClient(ctx)
 				if errReg != nil {
 					txRx.logger.Error("Failed to register client", "error", errReg)
+
 					return errReg
 				}
 			}
@@ -188,6 +191,7 @@ func (g *GRPC) Send(m revent.ClientMessage) error {
 	if err != nil {
 		return fmt.Errorf("failed to transform message to gRPC: %w", err)
 	}
+
 	return stream.Send(msg)
 }
 
@@ -325,6 +329,7 @@ func (g *GRPC) listenToStream(ctx context.Context) {
 				"error", errCasted,
 			)
 		}
+
 		if casted == nil {
 			continue
 		}
@@ -396,6 +401,7 @@ func transformServerMessageToGRPC(msg *reventv1.ServerToClientMessage) (revent.S
 		return &revent.ClientRegisteredMessage{
 			ClientID: revent.ClientID(casted.ClientRegistered.ClientId),
 		}, nil
+	//nolint:nilnil // think about this later.
 	case *reventv1.ServerToClientMessage_Heartbeat:
 		return nil, nil
 	}

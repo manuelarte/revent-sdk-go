@@ -19,7 +19,11 @@ type ClientRegistration struct {
 	timeout       time.Duration
 }
 
-func NewClientRegistration(logger logger.ILogger, clientID revent.ClientID, queryHandlers []revent.QueryID) *ClientRegistration {
+func NewClientRegistration(
+	logger logger.ILogger,
+	clientID revent.ClientID,
+	queryHandlers []revent.QueryID,
+) *ClientRegistration {
 	return &ClientRegistration{
 		logger:        logger,
 		clientID:      clientID,

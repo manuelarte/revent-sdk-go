@@ -13,7 +13,6 @@ import (
 )
 
 type fakeRegistrationManager struct {
-	registerErr    error
 	subscribeErr   error
 	unsubscribeErr error
 	predicate      func(msg revent.ServerMessage) bool
@@ -29,6 +28,7 @@ func (f *fakeRegistrationManager) Send(msg revent.ClientMessage) error {
 		default:
 		}
 	}
+
 	return nil
 }
 

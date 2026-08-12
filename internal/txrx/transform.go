@@ -14,6 +14,7 @@ func (e *UnknownMessageError) Error() string {
 }
 
 func TransformClientMessageToGRPC(msg revent.ClientMessage) (*reventv1.ClientToServerMessage, error) {
+	//nolint:gocritic // more events coming
 	switch msg := msg.(type) {
 	case *revent.ClientRegistrationMessage:
 		return &reventv1.ClientToServerMessage{

@@ -114,6 +114,7 @@ func (s *State) start(ctx context.Context, createTxRxFn func() (TxRx, <-chan err
 		case msg, ok := <-incoming:
 			if !ok {
 				incoming = nil
+
 				continue
 			}
 
