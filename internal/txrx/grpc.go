@@ -50,6 +50,10 @@ type (
 		BackoffCfg backoff.Config
 		// NumberOfRetries number of retries to connect to R-Event server.
 		NumberOfRetries uint
+		// IncomingBufferSize controls how many server messages can be queued for Incoming().
+		// The stream listener blocks when the buffer is full to guarantee no message is lost.
+		// Defaults to 64 if not set.
+		IncomingBufferSize int
 	}
 
 	// GRPC implements the TxRx interface using gRPC.
@@ -77,9 +81,10 @@ type (
 
 func DefaultGrpcConfig() GrpcConfig {
 	return GrpcConfig{
-		GRPCAddress:     "localhost:10000",
-		BackoffCfg:      backoff.DefaultConfig,
-		NumberOfRetries: defaultMaxNumberOfRetries,
+		GRPCAddress:        "localhost:10000",
+		BackoffCfg:         backoff.DefaultConfig,
+		NumberOfRetries:    defaultMaxNumberOfRetries,
+		IncomingBufferSize: defaultIncomingBufferSize,
 	}
 }
 
@@ -98,12 +103,17 @@ func NewGRPCTxRx(
 	cfg GrpcConfig,
 	registrar clientRegistrar,
 ) (*GRPC, <-chan error, error) {
+	bufferSize := cfg.IncomingBufferSize
+	if bufferSize == 0 {
+		bufferSize = defaultIncomingBufferSize
+	}
+
 	txRx := GRPC{
 		cfg:       cfg,
 		registrar: registrar,
 		logger:    logger,
 		state:     disconnectedState,
-		incoming:  make(chan revent.ServerMessage, defaultIncomingBufferSize),
+		incoming:  make(chan revent.ServerMessage, bufferSize),
 	}
 	// launch goroutines to manage the connection
 	// run goroutines for connection management and stream listening
@@ -319,11 +329,14 @@ func (g *GRPC) listenToStream(ctx context.Context) {
 			continue
 		}
 
-		// Never block stream receiving on slow consumers.
+		// Block on send to guarantee no message is lost.
+		// If the consumer cannot keep up, the stream listener will block.
+		// This propagates backpressure; if blocking persists, the app will fail
+		// and the server will resend the message on reconnect.
 		select {
 		case g.incoming <- casted:
-		default:
-			g.logger.Warn("Dropping incoming message due to full incoming buffer")
+		case <-ctx.Done():
+			return
 		}
 	}
 }
