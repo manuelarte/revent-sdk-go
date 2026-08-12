@@ -1,4 +1,4 @@
-package flow
+package revent_sdk_go
 
 import (
 	"context"
@@ -68,9 +68,9 @@ func TestClientRegistrationDoSuccess(t *testing.T) {
 			},
 		},
 	}
-	registration := NewClientRegistration(slog.Default(), "my-client")
+	registration := newClientRegistration(slog.Default(), "my-client")
 
-	err := registration.Do(t.Context(), m)
+	err := registration.do(t.Context(), m)
 	if err != nil {
 		t.Fatalf("Do() error = %v, want nil", err)
 	}
@@ -87,9 +87,9 @@ func TestClientRegistrationDoServerError(t *testing.T) {
 			},
 		},
 	}
-	registration := NewClientRegistration(slog.Default(), "my-client")
+	registration := newClientRegistration(slog.Default(), "my-client")
 
-	err := registration.Do(t.Context(), m)
+	err := registration.do(t.Context(), m)
 	if err == nil {
 		t.Fatal("Do() error = nil, want server error")
 	}
@@ -99,10 +99,10 @@ func TestClientRegistrationDoTimeout(t *testing.T) {
 	m := &fakeRegistrationManager{
 		response: nil,
 	}
-	registration := NewClientRegistration(slog.Default(), "my-client")
+	registration := newClientRegistration(slog.Default(), "my-client")
 	registration.timeout = 10 * time.Millisecond
 
-	err := registration.Do(t.Context(), m)
+	err := registration.do(t.Context(), m)
 	if err == nil {
 		t.Fatal("Do() error = nil, want timeout")
 	}
@@ -120,10 +120,10 @@ func TestClientRegistrationDoTimeoutWhenMessageDoesNotMatchPredicate(t *testing.
 			},
 		},
 	}
-	registration := NewClientRegistration(slog.Default(), "my-client")
+	registration := newClientRegistration(slog.Default(), "my-client")
 	registration.timeout = 10 * time.Millisecond
 
-	err := registration.Do(t.Context(), m)
+	err := registration.do(t.Context(), m)
 	if err == nil {
 		t.Fatal("Do() error = nil, want timeout")
 	}

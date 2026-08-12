@@ -1,4 +1,4 @@
-package flow
+package revent_sdk_go
 
 import (
 	"context"
@@ -8,20 +8,19 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/manuelarte/revent-sdk-go/internal"
 	"github.com/manuelarte/revent-sdk-go/logger"
 	"github.com/manuelarte/revent-sdk-go/revent"
 )
 
-type ClientRegistration struct {
+type clientRegistration struct {
 	logger        logger.ILogger
 	clientID      revent.ClientID
 	queryHandlers []revent.QueryID
 	timeout       time.Duration
 }
 
-func NewClientRegistration(logger logger.ILogger, clientID revent.ClientID, queryHandlers []revent.QueryID) *ClientRegistration {
-	return &ClientRegistration{
+func newClientRegistration(logger logger.ILogger, clientID revent.ClientID, queryHandlers []revent.QueryID) *clientRegistration {
+	return &clientRegistration{
 		logger:        logger,
 		clientID:      clientID,
 		queryHandlers: queryHandlers,
@@ -42,7 +41,7 @@ func (e ClientRegistrationRejectedError) Error() string {
 	return fmt.Sprintf("client %q registration rejected: %s", e.ClientID, e.Reason)
 }
 
-func (c *ClientRegistration) Do(ctx context.Context, m internal.ClientManager) error {
+func (c *clientRegistration) do(ctx context.Context, m *State) error {
 	subscriptionID := uuid.New()
 	registrationEvents := make(chan revent.ServerMessage, 1)
 
@@ -66,7 +65,7 @@ func (c *ClientRegistration) Do(ctx context.Context, m internal.ClientManager) e
 		_ = m.Unsubscribe(subscriptionID)
 	}()
 
-	err = m.Send(&revent.ClientRegistrationMessage{
+	err = m.txRx.Send(&revent.ClientRegistrationMessage{
 		ClientID:      c.clientID,
 		QueryHandlers: c.queryHandlers,
 	})
