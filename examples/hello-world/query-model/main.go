@@ -38,7 +38,7 @@ func run(logger *slog.Logger) error {
 		return fmt.Errorf("failed to register R-Event query and event handlers: %w", errRegisteringHandlers)
 	}
 
-	if errSession := reventsdkgo.OpenSession(ctx, s); errSession != nil {
+	if errSession := reventsdkgo.OpenSession(ctx, s, cfg.GRPCCfg); errSession != nil {
 		logger.ErrorContext(ctx, "Failed to open session", slog.Any("clientID", clientID), slog.Any("error", errSession))
 	}
 	// this is not executed, reventsdkgo.OpenSession blocks the thread

@@ -20,8 +20,8 @@ var _ internal.ClientManager = new(State)
 //go:structinit
 type (
 	State struct {
-		logger logger.ILogger
-		cfg    Config
+		logger   logger.ILogger
+		clientID revent.ClientID
 
 		once sync.Once
 		txRx TxRx
@@ -45,7 +45,7 @@ func NewState(cfg Config) (*State, error) {
 
 	return &State{
 		logger:        cfg.Logger,
-		cfg:           cfg,
+		clientID:      cfg.ClientID,
 		subscribers:   make(map[uuid.UUID]stateSubscription),
 		queryHandlers: make(map[revent.QueryID]any),
 	}, nil
@@ -61,7 +61,7 @@ func (s *State) RegisterClient(ctx context.Context) error {
 
 	errReg := flow.NewClientRegistration(
 		s.logger,
-		s.cfg.ClientID,
+		s.clientID,
 		s.getQueryHandlerIDs(),
 	).Do(ctx, x)
 	if errReg != nil {

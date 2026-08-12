@@ -8,12 +8,12 @@ import (
 )
 
 // OpenSession starts a session and can be called only once per State instance.
-func OpenSession(ctx context.Context, s *State) error {
+func OpenSession(ctx context.Context, s *State, cfg txrx.GrpcConfig) error {
 	var err error
 
 	s.once.Do(func() {
 		createTxRxFn := func() (TxRx, <-chan error, error) {
-			return txrx.NewGRPCTxRx(ctx, s.logger, s.cfg.GRPCCfg, s)
+			return txrx.NewGRPCTxRx(ctx, s.logger, cfg, s)
 		}
 		err = s.start(ctx, createTxRxFn)
 	})
