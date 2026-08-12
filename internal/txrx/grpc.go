@@ -130,7 +130,7 @@ func NewGRPCTxRx(
 		for {
 			select {
 			case <-ctx.Done():
-				txRx.logger.Info("Connection manager shutting down")
+				txRx.logger.Debug("Connection manager shutting down")
 
 				return ctx.Err()
 			case <-ticker.C:

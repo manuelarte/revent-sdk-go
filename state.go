@@ -68,6 +68,8 @@ func (s *State) RegisterClient(ctx context.Context) error {
 		return fmt.Errorf("failed to register client: %w", errReg)
 	}
 
+	s.logger.Info("Client registered successfully", "clientID", s.clientID)
+
 	return nil
 }
 
