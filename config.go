@@ -6,13 +6,14 @@ import (
 
 	"github.com/manuelarte/revent-sdk-go/internal/txrx"
 	"github.com/manuelarte/revent-sdk-go/logger"
+	"github.com/manuelarte/revent-sdk-go/revent"
 )
 
 type (
 	//go:structinit
 	Config struct {
 		// ClientID to be used to register in R-Event.
-		ClientID ClientID
+		ClientID revent.ClientID
 		// logger interface
 		Logger logger.ILogger
 		// gRPC config
@@ -28,7 +29,7 @@ func DefaultConfig() Config {
 	}
 
 	return Config{
-		ClientID: ClientID(hostname),
+		ClientID: revent.ClientID(hostname),
 		Logger:   &logger.EmptyLogger{},
 		GRPCCfg:  txrx.DefaultGrpcConfig(),
 	}

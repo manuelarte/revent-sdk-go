@@ -2,9 +2,7 @@ package revent_sdk_go
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/manuelarte/revent-sdk-go/internal/flow"
 	"github.com/manuelarte/revent-sdk-go/internal/txrx"
 	"github.com/manuelarte/revent-sdk-go/revent"
 )
@@ -15,14 +13,7 @@ func OpenSession(ctx context.Context, s *State) error {
 
 	s.once.Do(func() {
 		createTxRxFn := func() (TxRx, <-chan error, error) {
-			onConnected := func() {
-				errReg := flow.NewClientRegistration(s.logger, s.cfg.ClientID.String()).Do(ctx, s)
-				if errReg != nil {
-					s.logger.Error("Failed to register client", "error", errReg)
-				}
-			}
-
-			return txrx.NewGRPCTxRx(ctx, s.logger, s.cfg.GRPCCfg, onConnected, s)
+			return txrx.NewGRPCTxRx(ctx, s.logger, s.cfg.GRPCCfg, s)
 		}
 		err = s.start(ctx, createTxRxFn)
 	})
@@ -66,6 +57,7 @@ func RegisterSourceEventHandler[E revent.Event, S revent.SourceEvent[E]](eh reve
 	return nil
 }
 
+/*
 func QueryRequest[I revent.QueryRequestParameters, O revent.QueryResponse](
 	ctx context.Context,
 	s *State,
@@ -85,3 +77,4 @@ func QueryRequest[I revent.QueryRequestParameters, O revent.QueryResponse](
 
 	return zero, nil
 }
+*/

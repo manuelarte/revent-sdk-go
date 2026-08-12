@@ -7,7 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
-	reventv1 "github.com/manuelarte/revent-sdk-go/internal/api/gRPC/revent/v1"
+	"github.com/manuelarte/revent-sdk-go/internal/flow"
 	"github.com/manuelarte/revent-sdk-go/logger"
 	"github.com/manuelarte/revent-sdk-go/revent"
 )
@@ -30,8 +30,8 @@ type (
 	}
 
 	stateSubscription struct {
-		predicate func(msg *reventv1.ServerToClientMessage) bool
-		ch        chan<- *reventv1.ServerToClientMessage
+		predicate func(msg revent.ServerMessage) bool
+		ch        chan<- revent.ServerMessage
 	}
 )
 
@@ -48,32 +48,27 @@ func NewState(cfg Config) (*State, error) {
 	}, nil
 }
 
-func (s *State) RegisterClient() error {
-	return s.txRx.Send(&reventv1.ClientToServerMessage{
-		Payload: &reventv1.ClientToServerMessage_RegisterClient{
-			RegisterClient: &reventv1.RegisterClient{
-				ClientId:      s.cfg.ClientID.String(),
-				QueryHandlers: s.getQueryHandlerIDs(),
-			},
-		},
-	})
+func (s *State) RegisterClient(ctx context.Context) error {
+	errReg := flow.NewClientRegistration(
+		s.logger,
+		s.cfg.ClientID,
+		s.getQueryHandlerIDs(),
+	).Do(ctx, s)
+	if errReg != nil {
+		return fmt.Errorf("failed to register client: %w", errReg)
+	}
+
+	return nil
 }
 
 func (s *State) QueryRequest(requestID revent.RequestID, queryID revent.QueryID) error {
-	return s.txRx.Send(&reventv1.ClientToServerMessage{
-		Payload: &reventv1.ClientToServerMessage_QueryRequest{
-			QueryRequest: &reventv1.QueryRequest{
-				RequestId: requestID.String(),
-				QueryId:   string(queryID),
-			},
-		},
-	})
+	panic("not implemented")
 }
 
 func (s *State) Subscribe(
 	id uuid.UUID,
-	pred func(msg *reventv1.ServerToClientMessage) bool,
-	ch chan<- *reventv1.ServerToClientMessage,
+	pred func(msg revent.ServerMessage) bool,
+	ch chan<- revent.ServerMessage,
 ) error {
 	s.muSubscribers.Lock()
 	defer s.muSubscribers.Unlock()
@@ -92,7 +87,11 @@ func (s *State) Unsubscribe(id uuid.UUID) error {
 	return nil
 }
 
-func (s *State) Recv(msg *reventv1.ServerToClientMessage) {
+func (s *State) Send(msg revent.ClientMessage) error {
+	return s.txRx.Send(msg)
+}
+
+func (s *State) Recv(msg revent.ServerMessage) {
 	if msg == nil {
 		return
 	}
@@ -142,13 +141,13 @@ func (s *State) start(ctx context.Context, createTxRxFn func() (TxRx, <-chan err
 	}
 }
 
-func (s *State) getQueryHandlerIDs() []string {
+func (s *State) getQueryHandlerIDs() []revent.QueryID {
 	s.muQueryHandlers.RLock()
 	defer s.muQueryHandlers.RUnlock()
 
-	queryHandlers := make([]string, 0, len(s.queryHandlers))
+	queryHandlers := make([]revent.QueryID, 0, len(s.queryHandlers))
 	for queryID := range s.queryHandlers {
-		queryHandlers = append(queryHandlers, string(queryID))
+		queryHandlers = append(queryHandlers, queryID)
 	}
 
 	return queryHandlers

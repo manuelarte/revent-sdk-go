@@ -9,26 +9,28 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/manuelarte/revent-sdk-go/internal"
-	reventv1 "github.com/manuelarte/revent-sdk-go/internal/api/gRPC/revent/v1"
 	"github.com/manuelarte/revent-sdk-go/logger"
+	"github.com/manuelarte/revent-sdk-go/revent"
 )
 
 type ClientRegistration struct {
-	logger   logger.ILogger
-	clientID string
-	timeout  time.Duration
+	logger        logger.ILogger
+	clientID      revent.ClientID
+	queryHandlers []revent.QueryID
+	timeout       time.Duration
 }
 
-func NewClientRegistration(logger logger.ILogger, clientID string) *ClientRegistration {
+func NewClientRegistration(logger logger.ILogger, clientID revent.ClientID, queryHandlers []revent.QueryID) *ClientRegistration {
 	return &ClientRegistration{
-		logger:   logger,
-		clientID: clientID,
-		timeout:  2 * time.Second,
+		logger:        logger,
+		clientID:      clientID,
+		queryHandlers: queryHandlers,
+		timeout:       2 * time.Second,
 	}
 }
 
 type ClientRegistrationRejectedError struct {
-	ClientID string
+	ClientID revent.ClientID
 	Reason   string
 }
 
@@ -40,20 +42,18 @@ func (e ClientRegistrationRejectedError) Error() string {
 	return fmt.Sprintf("client %q registration rejected: %s", e.ClientID, e.Reason)
 }
 
-func (c *ClientRegistration) Do(ctx context.Context, m internal.Manager) error {
+func (c *ClientRegistration) Do(ctx context.Context, m internal.ClientManager) error {
 	subscriptionID := uuid.New()
-	registrationEvents := make(chan *reventv1.ServerToClientMessage, 1)
+	registrationEvents := make(chan revent.ServerMessage, 1)
 
-	err := m.Subscribe(subscriptionID, func(msg *reventv1.ServerToClientMessage) bool {
+	err := m.Subscribe(subscriptionID, func(msg revent.ServerMessage) bool {
 		if msg == nil {
 			return false
 		}
 
-		switch payload := msg.GetPayload().(type) {
-		case *reventv1.ServerToClientMessage_ClientRegistered:
-			return payload.ClientRegistered.GetClientId() == c.clientID
-		case *reventv1.ServerToClientMessage_ClientRegistrationError:
-			return payload.ClientRegistrationError.GetClientId() == c.clientID
+		switch payload := msg.(type) {
+		case *revent.ClientRegisteredMessage:
+			return payload.ClientID == c.clientID
 		default:
 			return false
 		}
@@ -66,9 +66,12 @@ func (c *ClientRegistration) Do(ctx context.Context, m internal.Manager) error {
 		_ = m.Unsubscribe(subscriptionID)
 	}()
 
-	err = m.RegisterClient()
+	err = m.Send(&revent.ClientRegistrationMessage{
+		ClientID:      c.clientID,
+		QueryHandlers: c.queryHandlers,
+	})
 	if err != nil {
-		return fmt.Errorf("error registering client: %w", err)
+		return fmt.Errorf("error sending client registration: %w", err)
 	}
 
 	waitCtx, cancel := context.WithTimeout(ctx, c.timeout)
@@ -82,18 +85,18 @@ func (c *ClientRegistration) Do(ctx context.Context, m internal.Manager) error {
 
 		return fmt.Errorf("error waiting for client registration: %w", waitCtx.Err())
 	case msg := <-registrationEvents:
-		switch payload := msg.GetPayload().(type) {
-		case *reventv1.ServerToClientMessage_ClientRegistered:
+		switch payload := msg.(type) {
+		case *revent.ClientRegisteredMessage:
 			c.logger.Info("Client registered successfully", "clientID", c.clientID)
 
 			return nil
-		case *reventv1.ServerToClientMessage_ClientRegistrationError:
+		case *revent.ClientRegistrationError:
 			return fmt.Errorf("error registering client: %w", ClientRegistrationRejectedError{
-				ClientID: payload.ClientRegistrationError.GetClientId(),
-				Reason:   payload.ClientRegistrationError.GetReason(),
+				ClientID: payload.ClientID,
+				Reason:   payload.Reason,
 			})
 		default:
-			return fmt.Errorf("unexpected registration message: %T", msg.GetPayload())
+			return fmt.Errorf("unexpected registration message: %T", msg)
 		}
 	}
 }

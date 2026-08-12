@@ -1,15 +1,11 @@
-package revent_sdk_go
+package revent
 
-import (
-	"errors"
-)
+import "errors"
 
 var ErrClientIDRequired = errors.New("ClientID is required")
 
-type (
-	// ClientID defines the client id to register to R-event.
-	ClientID string
-)
+// ClientID defines the client id to register to R-event.
+type ClientID string
 
 func (c ClientID) Validate() error {
 	if c == "" {

@@ -19,6 +19,7 @@ import (
 	reventv1 "github.com/manuelarte/revent-sdk-go/internal/api/gRPC/revent/v1"
 	backoff2 "github.com/manuelarte/revent-sdk-go/internal/backoff"
 	"github.com/manuelarte/revent-sdk-go/logger"
+	"github.com/manuelarte/revent-sdk-go/revent"
 )
 
 const (
@@ -55,7 +56,7 @@ type (
 	//go:structinit
 	GRPC struct {
 		cfg         GrpcConfig
-		m           internal.Manager
+		m           internal.ClientManager
 		logger      logger.ILogger
 		state       connectionState
 		onConnected func()
@@ -91,15 +92,13 @@ func NewGRPCTxRx(
 	ctx context.Context,
 	logger logger.ILogger,
 	cfg GrpcConfig,
-	onConnected func(),
-	m internal.Manager,
+	m internal.ClientManager,
 ) (*GRPC, <-chan error, error) {
 	txRx := GRPC{
-		cfg:         cfg,
-		m:           m,
-		logger:      logger,
-		state:       disconnectedState,
-		onConnected: onConnected,
+		cfg:    cfg,
+		m:      m,
+		logger: logger,
+		state:  disconnectedState,
 	}
 	// launch goroutines to manage the connection
 	// run goroutines for connection management and stream listening
@@ -131,8 +130,10 @@ func NewGRPCTxRx(
 
 				txRx.logger.Info("Connected to gRPC server")
 
-				if txRx.onConnected != nil {
-					txRx.onConnected()
+				errReg := m.RegisterClient(ctx)
+				if errReg != nil {
+					txRx.logger.Error("Failed to register client", "error", errReg)
+					return errReg
 				}
 			}
 		}
@@ -160,13 +161,17 @@ func NewGRPCTxRx(
 	return &txRx, errChan, nil
 }
 
-func (g *GRPC) Send(m *reventv1.ClientToServerMessage) error {
+func (g *GRPC) Send(m revent.ClientMessage) error {
 	stream := g.getStream()
 	if stream == nil {
 		return ErrStreamClosed
 	}
 
-	return stream.Send(m)
+	msg, err := TransformClientMessageToGRPC(m)
+	if err != nil {
+		return fmt.Errorf("failed to transform message to gRPC: %w", err)
+	}
+	return stream.Send(msg)
 }
 
 func (g *GRPC) connect(ctx context.Context) error {
@@ -293,7 +298,13 @@ func (g *GRPC) listenToStream(ctx context.Context) {
 			continue
 		}
 
-		g.m.Recv(msg)
+		casted, errCasted := transformServerMessageToGRPC(msg)
+		if errCasted != nil {
+			g.logger.Error("Failed to cast message to gRPC",
+				"error", errCasted,
+			)
+		}
+		g.m.Recv(casted)
 	}
 }
 
@@ -344,6 +355,21 @@ func (g *GRPC) getStream() grpc.BidiStreamingClient[reventv1.ClientToServerMessa
 	defer g.mu.RUnlock()
 
 	return g.stream
+}
+
+func transformServerMessageToGRPC(msg *reventv1.ServerToClientMessage) (revent.ServerMessage, error) {
+	switch casted := msg.Payload.(type) {
+	case *reventv1.ServerToClientMessage_ClientRegistered:
+		return &revent.ClientRegisteredMessage{
+			ClientID: revent.ClientID(casted.ClientRegistered.ClientId),
+		}, nil
+	case *reventv1.ServerToClientMessage_Heartbeat:
+		return nil, nil
+	}
+
+	return nil, &UnknownMessageError{
+		msg: nil,
+	}
 }
 
 func (c CantConnectToServerError) Error() string {

@@ -1,19 +1,6 @@
 package flow
 
-import (
-	"context"
-	"errors"
-	"fmt"
-	"time"
-
-	"github.com/google/uuid"
-
-	"github.com/manuelarte/revent-sdk-go/internal"
-	reventv1 "github.com/manuelarte/revent-sdk-go/internal/api/gRPC/revent/v1"
-	"github.com/manuelarte/revent-sdk-go/logger"
-	"github.com/manuelarte/revent-sdk-go/revent"
-)
-
+/*
 // QueryRequest is the flow to send a QueryRequest and wait for the QueryResponse.
 type QueryRequest[I revent.QueryRequestParameters, O revent.QueryResponse] struct {
 	logger  logger.ILogger
@@ -41,7 +28,7 @@ func (e QueryRequestError) Error() string {
 	return fmt.Sprintf("query request %q rejected: %q", e.RequestID, e.Reason)
 }
 
-func (c *QueryRequest[I, O]) Do(ctx context.Context, m internal.Manager) error {
+func (c *QueryRequest[I, O]) Do(ctx context.Context, m internal.ClientManager) error {
 	subscriptionID := uuid.New()
 	queryRequestEvents := make(chan *reventv1.ServerToClientMessage, 1)
 
@@ -98,3 +85,4 @@ func (c *QueryRequest[I, O]) Do(ctx context.Context, m internal.Manager) error {
 		}
 	}
 }
+*/
