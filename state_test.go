@@ -91,19 +91,20 @@ func TestOpenSessionCanOnlyBeCalledOncePerState(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	s, err := NewState(DefaultConfig())
+	cfg := DefaultConfig()
+	s, err := NewState(cfg)
 	if err != nil {
 		t.Fatalf("NewState() error = %v", err)
 	}
 
 	// First call with canceled context
-	err = OpenSession(ctx, s)
+	err = OpenSession(ctx, s, cfg.GRPCCfg)
 	if err == nil {
 		t.Fatal("OpenSession() first call error = nil, want error for canceled context")
 	}
 
 	// Second call should return nil because sync.Once ensures it's only called once
-	err = OpenSession(ctx, s)
+	err = OpenSession(ctx, s, cfg.GRPCCfg)
 	if err != nil {
 		t.Errorf("OpenSession() second call error = %v, want nil (idempotent due to sync.Once)", err)
 	}

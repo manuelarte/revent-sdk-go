@@ -10,8 +10,8 @@ import (
 	"github.com/google/uuid"
 
 	reventsdkgo "github.com/manuelarte/revent-sdk-go"
-	reventv1 "github.com/manuelarte/revent-sdk-go/internal/api/gRPC/revent/v1"
 	"github.com/manuelarte/revent-sdk-go/internal/txrx"
+	"github.com/manuelarte/revent-sdk-go/revent"
 )
 
 const (
@@ -24,7 +24,7 @@ type scenarioState struct {
 	state      *reventsdkgo.State
 	// we subscribe to every single message to do the checks later on.
 	subID             uuid.UUID
-	registrationCh    chan *reventv1.ServerToClientMessage
+	registrationCh    chan revent.ServerMessage
 	openSessionErrCh  chan error
 	openSessionCancel context.CancelFunc
 }
@@ -57,7 +57,7 @@ func (s *scenarioState) iOpenTheSDKSession(ctx context.Context) (context.Context
 	}
 
 	s.state = state
-	if errSubscribing := state.Subscribe(s.subID, func(msg *reventv1.ServerToClientMessage) bool {
+	if errSubscribing := state.Subscribe(s.subID, func(msg revent.ServerMessage) bool {
 		return true
 	}, s.registrationCh); errSubscribing != nil {
 		return ctx, fmt.Errorf("failed to subscribe: %w", errSubscribing)
@@ -67,7 +67,7 @@ func (s *scenarioState) iOpenTheSDKSession(ctx context.Context) (context.Context
 	s.openSessionCancel = cancel
 
 	go func() {
-		s.openSessionErrCh <- reventsdkgo.OpenSession(newCancelCtx, s.state)
+		s.openSessionErrCh <- reventsdkgo.OpenSession(newCancelCtx, s.state, s.cfg.GRPCCfg)
 	}()
 
 	return ctx, nil
@@ -120,13 +120,13 @@ func (s *scenarioState) iCancelTheSDKSessionContext(ctx context.Context) (contex
 func (s *scenarioState) theClientShouldBeRegisteredByTheServer(ctx context.Context) (context.Context, error) {
 	select {
 	case msg := <-s.registrationCh:
-		registered := msg.GetClientRegistered()
-		if registered == nil {
-			return ctx, fmt.Errorf("expected client_registered message, got %T", msg.GetPayload())
+		registered, ok := msg.(*revent.ClientRegisteredMessage)
+		if !ok {
+			return ctx, fmt.Errorf("expected ClientRegisteredMessage, got %T", msg)
 		}
 
-		if registered.GetClientId() != s.cfg.ClientID.String() {
-			return ctx, fmt.Errorf("unexpected client id: got %q want %q", registered.GetClientId(), s.cfg.ClientID.String())
+		if registered.ClientID.String() != s.cfg.ClientID.String() {
+			return ctx, fmt.Errorf("unexpected client id: got %q want %q", registered.ClientID.String(), s.cfg.ClientID.String())
 		}
 
 		return ctx, nil

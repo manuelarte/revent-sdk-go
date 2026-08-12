@@ -10,7 +10,7 @@ import (
 	grpcbackoff "google.golang.org/grpc/backoff"
 
 	reventsdkgo "github.com/manuelarte/revent-sdk-go"
-	reventv1 "github.com/manuelarte/revent-sdk-go/internal/api/gRPC/revent/v1"
+	"github.com/manuelarte/revent-sdk-go/revent"
 )
 
 func TestFeatures(t *testing.T) {
@@ -41,7 +41,7 @@ func initializeScenario(ctx *godog.ScenarioContext) {
 
 	ctx.Before(func(ctx context.Context, _ *godog.Scenario) (context.Context, error) {
 		cfg := reventsdkgo.DefaultConfig()
-		cfg.ClientID = reventsdkgo.ClientID("bdd-" + uuid.NewString())
+		cfg.ClientID = revent.ClientID("bdd-" + uuid.NewString())
 		cfg.GRPCCfg.NumberOfRetries = 3
 		cfg.GRPCCfg.BackoffCfg = grpcbackoff.Config{
 			BaseDelay:  10 * time.Millisecond,
@@ -56,7 +56,7 @@ func initializeScenario(ctx *godog.ScenarioContext) {
 		s.state = nil
 		s.openSessionCancel = nil
 		s.subID = uuid.New()
-		s.registrationCh = make(chan *reventv1.ServerToClientMessage, 1)
+		s.registrationCh = make(chan revent.ServerMessage, 1)
 		s.openSessionErrCh = make(chan error, 1)
 
 		return ctx, nil
