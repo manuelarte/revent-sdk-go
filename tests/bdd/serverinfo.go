@@ -89,7 +89,33 @@ func (s *serverInfo) restartServer(ctx context.Context) error {
 		return fmt.Errorf("error starting container: %w", err)
 	}
 
-	return nil
+	// Wait for the gRPC port to be accepting connections again.
+	// When a container is restarted via the testcontainers API the original
+	// waiting strategy used at creation is not automatically re-run, so we
+	// proactively probe the bound host port until it becomes available.
+	deadline := time.Now().Add(15 * time.Second)
+
+	addr := net.JoinHostPort("localhost", strconv.Itoa(s.grpcPort))
+
+	for time.Now().Before(deadline) {
+		d := net.Dialer{Timeout: 500 * time.Millisecond}
+
+		conn, err := d.Dial("tcp", addr)
+		if err == nil {
+			_ = conn.Close()
+
+			return nil
+		}
+
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("context canceled while waiting for server to become ready: %w", ctx.Err())
+		case <-time.After(200 * time.Millisecond):
+			// keep retrying until deadline
+		}
+	}
+
+	return fmt.Errorf("timed out waiting for server to become ready on %s", addr)
 }
 
 // getFreePort asks the kernel for a free open port that is ready to use.
