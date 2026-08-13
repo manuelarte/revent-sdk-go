@@ -9,6 +9,8 @@ import (
 )
 
 type (
+	// SubscriptionManager manages the subscriptions of processes that listen to the different messages.
+	// It is used to subscribe and unsubscribe from the different messages.
 	SubscriptionManager interface {
 		Subscribe(
 			id uuid.UUID,
@@ -19,13 +21,15 @@ type (
 		Unsubscribe(id uuid.UUID) error
 	}
 
-	Sender interface {
-		Send(msg revent.ClientMessage) error
-	}
-
-	ClientManager interface {
-		SubscriptionManager
+	// FlowManager manages the different flows of messages between the client and the server.
+	FlowManager interface {
 		RegisterClient(ctx context.Context) error
 		QueryRequest(requestID revent.RequestID, queryID revent.QueryID) error
+	}
+
+	// ClientManager manages the client registration and query requests.
+	ClientManager interface {
+		SubscriptionManager
+		FlowManager
 	}
 )

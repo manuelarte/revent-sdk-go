@@ -1,4 +1,4 @@
-package flow
+package flows
 
 /*
 // QueryRequest is the flow to send a QueryRequest and wait for the QueryResponse.

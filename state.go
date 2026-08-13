@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/manuelarte/revent-sdk-go/internal"
-	"github.com/manuelarte/revent-sdk-go/internal/flow"
+	"github.com/manuelarte/revent-sdk-go/internal/flows"
 	"github.com/manuelarte/revent-sdk-go/logger"
 	"github.com/manuelarte/revent-sdk-go/revent"
 )
@@ -59,7 +59,7 @@ func (s *State) RegisterClient(ctx context.Context) error {
 
 	x := sendAndSubscribe{s, s.txRx}
 
-	errReg := flow.NewClientRegistration(
+	errReg := flows.NewClientRegistration(
 		s.logger,
 		s.clientID,
 		s.getQueryHandlerIDs(),
