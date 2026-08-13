@@ -90,7 +90,7 @@ func (s *serverInfo) restartServer(ctx context.Context) error {
 	}
 
 	// Wait for the gRPC port to be accepting connections again.
-	// When a container is restarted via the testcontainers API the original
+	// When a container is restarted via the testcontainers API, the original
 	// waiting strategy used at creation is not automatically re-run, so we
 	// proactively probe the bound host port until it becomes available.
 	deadline := time.Now().Add(15 * time.Second)
