@@ -15,12 +15,12 @@ import (
 type fakeRegistrationManager struct {
 	subscribeErr   error
 	unsubscribeErr error
-	predicate      func(msg revent.ServerMessage) bool
-	ch             chan<- revent.ServerMessage
-	response       revent.ServerMessage
+	predicate      func(msg revent.ServerMsg) bool
+	ch             chan<- revent.ServerMsg
+	response       revent.ServerMsg
 }
 
-func (f *fakeRegistrationManager) Send(msg revent.ClientMessage) error {
+func (f *fakeRegistrationManager) Send(msg revent.ClientMsg) error {
 	// When a client registration message is sent, respond immediately if a response is configured
 	if f.response != nil && (f.predicate == nil || f.predicate(f.response)) {
 		select {
@@ -34,8 +34,8 @@ func (f *fakeRegistrationManager) Send(msg revent.ClientMessage) error {
 
 func (f *fakeRegistrationManager) Subscribe(
 	_ uuid.UUID,
-	pred func(msg revent.ServerMessage) bool,
-	ch chan<- revent.ServerMessage,
+	pred func(msg revent.ServerMsg) bool,
+	ch chan<- revent.ServerMsg,
 ) error {
 	if f.subscribeErr != nil {
 		return f.subscribeErr
@@ -53,7 +53,7 @@ func (f *fakeRegistrationManager) Unsubscribe(uuid.UUID) error {
 
 func TestClientRegistrationDoSuccess(t *testing.T) {
 	m := &fakeRegistrationManager{
-		response: &revent.ClientRegisteredMessage{
+		response: &revent.ClientRegisteredMsg{
 			ClientID: "my-client",
 		},
 	}
@@ -67,7 +67,7 @@ func TestClientRegistrationDoSuccess(t *testing.T) {
 
 func TestClientRegistrationDoServerError(t *testing.T) {
 	m := &fakeRegistrationManager{
-		response: &revent.ClientRegistrationError{
+		response: &revent.ClientRegistrationErrorMsg{
 			ClientID: "my-client",
 			Reason:   "duplicate client id",
 		},
@@ -99,7 +99,7 @@ func TestClientRegistrationDoTimeout(t *testing.T) {
 
 func TestClientRegistrationDoTimeoutWhenMessageDoesNotMatchPredicate(t *testing.T) {
 	m := &fakeRegistrationManager{
-		response: &revent.ClientRegisteredMessage{
+		response: &revent.ClientRegisteredMsg{
 			ClientID: "other-client",
 		},
 	}

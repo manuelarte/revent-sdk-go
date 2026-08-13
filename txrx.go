@@ -10,7 +10,7 @@ var _ TxRx = new(txrx.GRPC)
 type (
 	TxRx interface {
 		// Send sends a message to the server.
-		Send(m revent.ClientMessage) error
+		Send(m revent.ClientMsg) error
 
 		// Incoming emits server messages received by the transport.
 		//
@@ -22,6 +22,6 @@ type (
 		//
 		// For the gRPC transport, queue size is configured via
 		// GrpcConfig.IncomingBufferSize (defaults to 64).
-		Incoming() <-chan revent.ServerMessage
+		Incoming() <-chan revent.ServerMsg
 	}
 )

@@ -34,15 +34,15 @@ func NewClientRegistration(
 
 func (c *ClientRegistration) Do(ctx context.Context, m SendAndSubscribe) error {
 	subscriptionID := uuid.New()
-	registrationEvents := make(chan revent.ServerMessage, 1)
+	registrationEvents := make(chan revent.ServerMsg, 1)
 
-	err := m.Subscribe(subscriptionID, func(msg revent.ServerMessage) bool {
+	err := m.Subscribe(subscriptionID, func(msg revent.ServerMsg) bool {
 		if msg == nil {
 			return false
 		}
 
 		switch payload := msg.(type) {
-		case *revent.ClientRegisteredMessage:
+		case *revent.ClientRegisteredMsg:
 			return payload.ClientID == c.clientID
 		default:
 			return false
@@ -56,7 +56,7 @@ func (c *ClientRegistration) Do(ctx context.Context, m SendAndSubscribe) error {
 		_ = m.Unsubscribe(subscriptionID)
 	}()
 
-	err = m.Send(&revent.ClientRegistrationMessage{
+	err = m.Send(&revent.ClientRegistrationMsg{
 		ClientID:      c.clientID,
 		QueryHandlers: c.queryHandlers,
 	})
@@ -76,9 +76,9 @@ func (c *ClientRegistration) Do(ctx context.Context, m SendAndSubscribe) error {
 		return fmt.Errorf("error waiting for client registration: %w", waitCtx.Err())
 	case msg := <-registrationEvents:
 		switch payload := msg.(type) {
-		case *revent.ClientRegisteredMessage:
+		case *revent.ClientRegisteredMsg:
 			return nil
-		case *revent.ClientRegistrationError:
+		case *revent.ClientRegistrationErrorMsg:
 			return payload
 		default:
 			return UnexpectedMsgError{

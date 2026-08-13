@@ -1,43 +1,68 @@
 package revent
 
-import "fmt"
-
-var (
-	_ ClientMessage = new(ClientRegistrationMessage)
-	_ ServerMessage = new(ClientRegisteredMessage)
+import (
+	"fmt"
 )
 
-var _ error = new(ClientRegistrationError)
+var (
+	_ ClientMsg = new(ClientRegistrationMsg)
+	_ ServerMsg = new(ClientRegisteredMsg)
+)
+
+var (
+	_ error = new(ClientRegistrationErrorMsg)
+	_ error = new(QueryResponseErrorMsg)
+)
 
 type (
-	Message any
+	Msg any
 
-	ClientMessage interface {
-		Message
+	ClientMsg interface {
+		Msg
 		clientMessage()
 	}
 
-	ClientRegistrationMessage struct {
+	ClientRegistrationMsg struct {
 		ClientID      ClientID
 		QueryHandlers []QueryID
 	}
 
-	ServerMessage interface {
-		Message
+	QueryRequestMsg struct {
+		RequestID  RequestID
+		QueryID    QueryID
+		Parameters QueryRequestParameters
+	}
+
+	ServerMsg interface {
+		Msg
 		serverMessage()
 	}
 
-	ClientRegisteredMessage struct {
+	ClientRegisteredMsg struct {
 		ClientID ClientID
 	}
 
-	ClientRegistrationError struct {
+	//nolint:errname // keep consistency with Msg at the end
+	ClientRegistrationErrorMsg struct {
 		ClientID ClientID
 		Reason   string
 	}
+
+	QueryResponseMsg struct {
+		RequestID RequestID
+		QueryID   QueryID
+		Response  QueryResponse
+	}
+
+	//nolint:errname // keep consistency with Msg at the end
+	QueryResponseErrorMsg struct {
+		RequestID RequestID
+		QueryID   QueryID
+		Reason    string
+	}
 )
 
-func (e ClientRegistrationError) Error() string {
+func (e ClientRegistrationErrorMsg) Error() string {
 	if e.Reason == "" {
 		return fmt.Sprintf("client %q registration rejected", e.ClientID)
 	}
@@ -45,6 +70,17 @@ func (e ClientRegistrationError) Error() string {
 	return fmt.Sprintf("client %q registration rejected: %s", e.ClientID, e.Reason)
 }
 
-func (c ClientRegistrationMessage) clientMessage() {}
-func (c ClientRegisteredMessage) serverMessage()   {}
-func (e ClientRegistrationError) serverMessage()   {}
+func (e QueryResponseErrorMsg) Error() string {
+	if e.Reason == "" {
+		return fmt.Sprintf("query %q response error", e.QueryID)
+	}
+
+	return fmt.Sprintf("query %q response error: %s", e.QueryID, e.Reason)
+}
+
+func (c ClientRegistrationMsg) clientMessage()      {}
+func (q QueryRequestMsg) clientMessage()            {}
+func (c ClientRegisteredMsg) serverMessage()        {}
+func (e ClientRegistrationErrorMsg) serverMessage() {}
+func (e QueryResponseMsg) serverMessage()           {}
+func (e QueryResponseErrorMsg) serverMessage()      {}

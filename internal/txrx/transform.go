@@ -8,17 +8,17 @@ import (
 )
 
 type UnknownMsgError struct {
-	Msg revent.Message
+	Msg revent.Msg
 }
 
 func (e *UnknownMsgError) Error() string {
 	return fmt.Sprintf("do not know how to transform msg: %T", e.Msg)
 }
 
-func transformClientMessageToGRPC(msg revent.ClientMessage) (*reventv1.ClientToServerMessage, error) {
+func transformClientMessageToGRPC(msg revent.ClientMsg) (*reventv1.ClientToServerMessage, error) {
 	//nolint:gocritic // more events coming
 	switch msg := msg.(type) {
-	case *revent.ClientRegistrationMessage:
+	case *revent.ClientRegistrationMsg:
 		return &reventv1.ClientToServerMessage{
 			Payload: &reventv1.ClientToServerMessage_RegisterClient{
 				RegisterClient: &reventv1.RegisterClient{
@@ -34,7 +34,7 @@ func transformClientMessageToGRPC(msg revent.ClientMessage) (*reventv1.ClientToS
 	}
 }
 
-func transformServerMessageToGRPC(msg *reventv1.ServerToClientMessage) (revent.ServerMessage, error) {
+func transformServerMessageToGRPC(msg *reventv1.ServerToClientMessage) (revent.ServerMsg, error) {
 	switch casted := msg.Payload.(type) {
 	case *reventv1.ServerToClientMessage_ClientRegistered:
 		return transformToClientRegistered(casted), nil
@@ -48,8 +48,8 @@ func transformServerMessageToGRPC(msg *reventv1.ServerToClientMessage) (revent.S
 	}
 }
 
-func transformToClientRegistered(msg *reventv1.ServerToClientMessage_ClientRegistered) *revent.ClientRegisteredMessage {
-	return &revent.ClientRegisteredMessage{
+func transformToClientRegistered(msg *reventv1.ServerToClientMessage_ClientRegistered) *revent.ClientRegisteredMsg {
+	return &revent.ClientRegisteredMsg{
 		ClientID: revent.ClientID(msg.ClientRegistered.ClientId),
 	}
 }

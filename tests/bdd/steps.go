@@ -24,7 +24,7 @@ type scenarioState struct {
 	state      *reventsdkgo.State
 	// we subscribe to every single message to do the checks later on.
 	subID             uuid.UUID
-	registrationCh    chan revent.ServerMessage
+	registrationCh    chan revent.ServerMsg
 	openSessionErrCh  chan error
 	openSessionCancel context.CancelFunc
 }
@@ -57,7 +57,7 @@ func (s *scenarioState) iOpenTheSDKSession(ctx context.Context) (context.Context
 	}
 
 	s.state = state
-	if errSubscribing := state.Subscribe(s.subID, func(msg revent.ServerMessage) bool {
+	if errSubscribing := state.Subscribe(s.subID, func(msg revent.ServerMsg) bool {
 		return true
 	}, s.registrationCh); errSubscribing != nil {
 		return ctx, fmt.Errorf("failed to subscribe: %w", errSubscribing)
@@ -120,7 +120,7 @@ func (s *scenarioState) iCancelTheSDKSessionContext(ctx context.Context) (contex
 func (s *scenarioState) theClientShouldBeRegisteredByTheServer(ctx context.Context) (context.Context, error) {
 	select {
 	case msg := <-s.registrationCh:
-		registered, ok := msg.(*revent.ClientRegisteredMessage)
+		registered, ok := msg.(*revent.ClientRegisteredMsg)
 		if !ok {
 			return ctx, fmt.Errorf("expected ClientRegisteredMessage, got %T", msg)
 		}

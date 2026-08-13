@@ -70,7 +70,7 @@ type (
 		mu       sync.RWMutex
 		conn     *grpc.ClientConn
 		stream   grpc.BidiStreamingClient[reventv1.ClientToServerMessage, reventv1.ServerToClientMessage]
-		incoming chan revent.ServerMessage
+		incoming chan revent.ServerMsg
 	}
 
 	clientRegistrar interface {
@@ -116,7 +116,7 @@ func NewGRPCTxRx(
 		registrar: registrar,
 		logger:    logger,
 		state:     disconnectedState,
-		incoming:  make(chan revent.ServerMessage, bufferSize),
+		incoming:  make(chan revent.ServerMsg, bufferSize),
 	}
 	// launch goroutines to manage the connection
 	// run goroutines for connection management and stream listening
@@ -182,7 +182,7 @@ func NewGRPCTxRx(
 	return &txRx, errChan, nil
 }
 
-func (g *GRPC) Send(m revent.ClientMessage) error {
+func (g *GRPC) Send(m revent.ClientMsg) error {
 	stream := g.getStream()
 	if stream == nil {
 		return ErrStreamClosed
@@ -196,7 +196,7 @@ func (g *GRPC) Send(m revent.ClientMessage) error {
 	return stream.Send(msg)
 }
 
-func (g *GRPC) Incoming() <-chan revent.ServerMessage {
+func (g *GRPC) Incoming() <-chan revent.ServerMsg {
 	return g.incoming
 }
 

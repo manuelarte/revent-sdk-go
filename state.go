@@ -33,8 +33,8 @@ type (
 	}
 
 	stateSubscription struct {
-		predicate func(msg revent.ServerMessage) bool
-		ch        chan<- revent.ServerMessage
+		predicate func(msg revent.ServerMsg) bool
+		ch        chan<- revent.ServerMsg
 	}
 )
 
@@ -79,8 +79,8 @@ func (s *State) QueryRequest(requestID revent.RequestID, queryID revent.QueryID)
 
 func (s *State) Subscribe(
 	id uuid.UUID,
-	pred func(msg revent.ServerMessage) bool,
-	ch chan<- revent.ServerMessage,
+	pred func(msg revent.ServerMsg) bool,
+	ch chan<- revent.ServerMsg,
 ) error {
 	s.muSubscribers.Lock()
 	defer s.muSubscribers.Unlock()
@@ -131,7 +131,7 @@ func (s *State) start(ctx context.Context, createTxRxFn func() (TxRx, <-chan err
 	}
 }
 
-func (s *State) dispatchServerMessage(msg revent.ServerMessage) {
+func (s *State) dispatchServerMessage(msg revent.ServerMsg) {
 	if msg == nil {
 		return
 	}
