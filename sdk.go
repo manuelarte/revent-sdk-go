@@ -76,20 +76,21 @@ func QueryRequest[I revent.QueryRequestParameters, O revent.QueryResponse](
 	}
 	qr := actions.NewQueryRequisition[I, O](s.logger, x)
 
-	err := qr.Do(ctx, actions.QueryRequisitionParams[I, O]{
+	output, err := qr.Do(ctx, actions.QueryRequisitionParams[I, O]{
 		RequestID: requestID,
 		QueryID:   query,
 		Params:    params,
 	})
+	// TODO: check error
 	if err != nil {
 		var zero O
 
 		return zero, fmt.Errorf("error sending query request: %w", err)
 	}
 
-	var zero O
+	s.logger.Info("Query responded successfully", "requestID", requestID)
 
-	return zero, nil
+	return output.Response, nil
 }
 
 func registerClient(s *ServerManager) func(ctx context.Context) error {

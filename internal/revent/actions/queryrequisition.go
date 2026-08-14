@@ -23,9 +23,9 @@ type (
 		Params    I
 	}
 
-	QueryRequestError struct {
-		RequestID string
-		Reason    string
+	QueryRequisitionResponse[O revent.QueryResponse] struct {
+		Response O
+		Err      error
 	}
 )
 
@@ -39,12 +39,7 @@ func NewQueryRequisition[I revent.QueryRequestParameters, O revent.QueryResponse
 	}
 }
 
-func (e QueryRequestError) Error() string {
-	return fmt.Sprintf("query request %q rejected: %q", e.RequestID, e.Reason)
-}
-
-// TODO: think about this API
-func (c *QueryRequisition[I, O]) Do(ctx context.Context, params QueryRequisitionParams[I, O]) error {
+func (c *QueryRequisition[I, O]) Do(ctx context.Context, params QueryRequisitionParams[I, O]) (*QueryRequisitionResponse[O], error) {
 	queryRequestEvents := make(chan revent.ServerMsg, 1)
 
 	err := c.m.Subscribe(uuid.UUID(params.RequestID), func(msg revent.ServerMsg) bool {
@@ -58,7 +53,7 @@ func (c *QueryRequisition[I, O]) Do(ctx context.Context, params QueryRequisition
 		return false
 	}, queryRequestEvents)
 	if err != nil {
-		return fmt.Errorf("error creating query responsed listener: %w", err)
+		return nil, fmt.Errorf("error creating query responsed listener: %w", err)
 	}
 
 	defer func() {
@@ -71,26 +66,28 @@ func (c *QueryRequisition[I, O]) Do(ctx context.Context, params QueryRequisition
 		Parameters: nil,
 	})
 	if err != nil {
-		return fmt.Errorf("error sending query request: %w", err)
+		return nil, fmt.Errorf("error sending query request: %w", err)
 	}
 
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("error waiting for query response: %w", ctx.Err())
+		return nil, fmt.Errorf("error waiting for query response: %w", ctx.Err())
 	case msg := <-queryRequestEvents:
 		switch payload := msg.(type) {
 		case *revent.QueryResponseRawMsg:
-			c.logger.Info("Query responded successfully", "requestID", payload.RequestID)
-			// TODO: rethink flow api
-			return nil
+			return &QueryRequisitionResponse[O]{
+				Response: payload.Response,
+			}, nil
 		case *revent.QueryResponseErrorRawMsg:
-			return &revent.QueryResponseErrorMsg{
-				RequestID: payload.RequestID,
-				QueryID:   revent.QueryID(params.QueryID),
-				Reason:    payload.Reason,
-			}
+			return &QueryRequisitionResponse[O]{
+				Err: &revent.QueryResponseErrorMsg{
+					RequestID: payload.RequestID,
+					QueryID:   revent.QueryID(params.QueryID),
+					Reason:    payload.Reason,
+				},
+			}, nil
 		default:
-			return UnexpectedMsgError{
+			return nil, UnexpectedMsgError{
 				Flow: "QueryRequisition",
 				Msg:  payload,
 			}
