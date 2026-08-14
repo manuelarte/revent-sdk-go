@@ -5,12 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"time"
 
 	"github.com/google/uuid"
 	"golang.org/x/sync/errgroup"
 
 	reventsdkgo "github.com/manuelarte/revent-sdk-go"
+	"github.com/manuelarte/revent-sdk-go/internal/txrx"
 	"github.com/manuelarte/revent-sdk-go/revent"
 )
 
@@ -54,7 +54,25 @@ func run(logger *slog.Logger) error {
 	})
 
 	// add http server with endpoint to ask for users by id
-	time.Sleep(4 * time.Second) // wait for the session to be established
+
+	// Wait until the session reports a connected state before sending queries.
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case stateEvent := <-s.StateChangesChan():
+			// Replace this condition with the actual connected-state check exposed by your SDK.
+			// Examples could be:
+			//   if stateEvent.State == reventsdkgo.ConnectedState { ... }
+			//   if stateEvent.IsConnected() { ... }
+			if stateEvent == txrx.ConnectedState {
+				logger.InfoContext(ctx, "Session connected", slog.Any("clientID", clientID))
+				goto connected
+			}
+		}
+	}
+
+connected:
 	requestID := revent.RequestID(uuid.New())
 	if _, errQueryRequest := reventsdkgo.QueryRequest(ctx, s, requestID, getAllUsers, getAllUsersParams{}); errQueryRequest != nil {
 		return fmt.Errorf("failed to send query request: %w", errQueryRequest)

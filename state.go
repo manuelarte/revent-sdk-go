@@ -30,6 +30,8 @@ type (
 		subscribers     map[uuid.UUID]serverMessageSubscription
 		muQueryHandlers sync.RWMutex
 		queryHandlers   map[revent.QueryID]any
+
+		stateChan chan txrx.ConnectionState
 	}
 
 	serverMessageSubscription struct {
@@ -48,6 +50,7 @@ func NewState(cfg Config) (*ServerManager, error) {
 		clientID:      cfg.ClientID,
 		subscribers:   make(map[uuid.UUID]serverMessageSubscription),
 		queryHandlers: make(map[revent.QueryID]any),
+		stateChan:     make(chan txrx.ConnectionState, 1),
 	}, nil
 }
 
@@ -71,6 +74,10 @@ func (s *ServerManager) Unsubscribe(id uuid.UUID) error {
 	delete(s.subscribers, id)
 
 	return nil
+}
+
+func (s *ServerManager) StateChangesChan() <-chan txrx.ConnectionState {
+	return s.stateChan
 }
 
 // start creates the txRx connection and blocks until the connection is closed.
@@ -106,6 +113,7 @@ func (s *ServerManager) start(
 
 			if sessionEvent.Err == nil {
 				// TODO: update state
+				s.stateChan <- sessionEvent.State
 				continue
 			}
 
