@@ -62,10 +62,6 @@ clientRegisteredLoop:
 		case <-ctx.Done():
 			return ctx.Err()
 		case stateEvent := <-s.StateChangesChan():
-			// Replace this condition with the actual connected-state check exposed by your SDK.
-			// Examples could be:
-			//   if stateEvent.State == reventsdkgo.ConnectedState { ... }
-			//   if stateEvent.IsConnected() { ... }
 			if stateEvent == txrx.ClientRegisteredState {
 				logger.InfoContext(ctx, "Session connected", slog.Any("clientID", clientID))
 				break clientRegisteredLoop
