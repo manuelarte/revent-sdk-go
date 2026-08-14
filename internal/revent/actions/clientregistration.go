@@ -2,9 +2,7 @@ package actions
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
 
@@ -12,38 +10,43 @@ import (
 	"github.com/manuelarte/revent-sdk-go/revent"
 )
 
-type ClientRegistration struct {
-	logger        logger.ILogger
-	clientID      revent.ClientID
-	queryHandlers []revent.QueryID
-	timeout       time.Duration
-}
+type (
+	ClientRegistration struct {
+		logger logger.ILogger
+		m      SendAndSubscribe
+	}
+
+	ClientRegistrationParams struct {
+		ClientID      revent.ClientID
+		QueryHandlers []revent.QueryID
+	}
+)
 
 func NewClientRegistration(
 	logger logger.ILogger,
-	clientID revent.ClientID,
-	queryHandlers []revent.QueryID,
+	m SendAndSubscribe,
 ) *ClientRegistration {
 	return &ClientRegistration{
-		logger:        logger,
-		clientID:      clientID,
-		queryHandlers: queryHandlers,
-		timeout:       2 * time.Second,
+		logger: logger,
+		m:      m,
 	}
 }
 
-func (c *ClientRegistration) Do(ctx context.Context, m SendAndSubscribe) error {
+func (c *ClientRegistration) Do(
+	ctx context.Context,
+	params ClientRegistrationParams,
+) error {
 	subscriptionID := uuid.New()
 	registrationEvents := make(chan revent.ServerMsg, 1)
 
-	err := m.Subscribe(subscriptionID, func(msg revent.ServerMsg) bool {
+	err := c.m.Subscribe(subscriptionID, func(msg revent.ServerMsg) bool {
 		if msg == nil {
 			return false
 		}
 
 		switch payload := msg.(type) {
 		case *revent.ClientRegisteredMsg:
-			return payload.ClientID == c.clientID
+			return payload.ClientID == params.ClientID
 		default:
 			return false
 		}
@@ -53,27 +56,20 @@ func (c *ClientRegistration) Do(ctx context.Context, m SendAndSubscribe) error {
 	}
 
 	defer func() {
-		_ = m.Unsubscribe(subscriptionID)
+		_ = c.m.Unsubscribe(subscriptionID)
 	}()
 
-	err = m.Send(&revent.ClientRegistrationMsg{
-		ClientID:      c.clientID,
-		QueryHandlers: c.queryHandlers,
+	err = c.m.Send(&revent.ClientRegistrationMsg{
+		ClientID:      params.ClientID,
+		QueryHandlers: params.QueryHandlers,
 	})
 	if err != nil {
 		return fmt.Errorf("error sending client registration: %w", err)
 	}
 
-	waitCtx, cancel := context.WithTimeout(ctx, c.timeout)
-	defer cancel()
-
 	select {
-	case <-waitCtx.Done():
-		if errors.Is(waitCtx.Err(), context.DeadlineExceeded) {
-			return fmt.Errorf("client registration timeout after %s: %w", c.timeout, waitCtx.Err())
-		}
-
-		return fmt.Errorf("error waiting for client registration: %w", waitCtx.Err())
+	case <-ctx.Done():
+		return fmt.Errorf("error waiting for client registration: %w", ctx.Err())
 	case msg := <-registrationEvents:
 		switch payload := msg.(type) {
 		case *revent.ClientRegisteredMsg:

@@ -2,9 +2,7 @@ package actions
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
 
@@ -15,10 +13,14 @@ import (
 type (
 	// QueryRequisition is the flow to send a QueryRequest, wait, and forward the QueryResponse.
 	QueryRequisition[I revent.QueryRequestParameters, O revent.QueryResponse] struct {
-		logger    logger.ILogger
-		requestID revent.RequestID
-		queryID   revent.Query[I, O]
-		timeout   time.Duration
+		logger logger.ILogger
+		m      SendAndSubscribe
+	}
+
+	QueryRequisitionParams[I revent.QueryRequestParameters, O revent.QueryResponse] struct {
+		RequestID revent.RequestID
+		QueryID   revent.Query[I, O]
+		Params    I
 	}
 
 	QueryRequestError struct {
@@ -29,14 +31,11 @@ type (
 
 func NewQueryRequisition[I revent.QueryRequestParameters, O revent.QueryResponse](
 	logger logger.ILogger,
-	requestID revent.RequestID,
-	query revent.Query[I, O],
+	m SendAndSubscribe,
 ) *QueryRequisition[I, O] {
 	return &QueryRequisition[I, O]{
-		logger:    logger,
-		requestID: requestID,
-		queryID:   query,
-		timeout:   2 * time.Second,
+		logger: logger,
+		m:      m,
 	}
 }
 
@@ -44,17 +43,17 @@ func (e QueryRequestError) Error() string {
 	return fmt.Sprintf("query request %q rejected: %q", e.RequestID, e.Reason)
 }
 
-func (c *QueryRequisition[I, O]) Do(ctx context.Context, m SendAndSubscribe) error {
+func (c *QueryRequisition[I, O]) Do(ctx context.Context, params QueryRequisitionParams[I, O]) error {
 	queryRequestEvents := make(chan revent.ServerMsg, 1)
 
-	err := m.Subscribe(uuid.UUID(c.requestID), func(msg revent.ServerMsg) bool {
+	err := c.m.Subscribe(uuid.UUID(params.RequestID), func(msg revent.ServerMsg) bool {
 		if msg == nil {
 			return false
 		}
 
 		switch payload := msg.(type) {
 		case *revent.QueryResponseRawMsg:
-			return payload.RequestID.String() == c.requestID.String()
+			return payload.RequestID.String() == params.RequestID.String()
 		default:
 			return false
 		}
@@ -64,28 +63,21 @@ func (c *QueryRequisition[I, O]) Do(ctx context.Context, m SendAndSubscribe) err
 	}
 
 	defer func() {
-		_ = m.Unsubscribe(uuid.UUID(c.requestID))
+		_ = c.m.Unsubscribe(uuid.UUID(params.RequestID))
 	}()
 
-	err = m.Send(&revent.QueryRequestMsg{
-		RequestID:  c.requestID,
-		QueryID:    revent.QueryID(c.queryID),
+	err = c.m.Send(&revent.QueryRequestMsg{
+		RequestID:  params.RequestID,
+		QueryID:    revent.QueryID(params.QueryID),
 		Parameters: nil,
 	})
 	if err != nil {
 		return fmt.Errorf("error sending query request: %w", err)
 	}
 
-	waitCtx, cancel := context.WithTimeout(ctx, c.timeout)
-	defer cancel()
-
 	select {
-	case <-waitCtx.Done():
-		if errors.Is(waitCtx.Err(), context.DeadlineExceeded) {
-			return fmt.Errorf("query request timeout after %s: %w", c.timeout, waitCtx.Err())
-		}
-
-		return fmt.Errorf("error waiting for query response: %w", waitCtx.Err())
+	case <-ctx.Done():
+		return fmt.Errorf("error waiting for query response: %w", ctx.Err())
 	case msg := <-queryRequestEvents:
 		switch payload := msg.(type) {
 		case *revent.QueryResponseRawMsg:
@@ -96,7 +88,7 @@ func (c *QueryRequisition[I, O]) Do(ctx context.Context, m SendAndSubscribe) err
 			return payload
 		default:
 			return UnexpectedMsgError{
-				Flow: "ClientRegistration",
+				Flow: "QueryRequisition",
 				Msg:  payload,
 			}
 		}

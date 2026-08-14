@@ -113,6 +113,7 @@ func (s *ServerManager) start(
 
 			if sessionEvent.Err == nil {
 				s.stateChan <- sessionEvent.State
+
 				continue
 			}
 

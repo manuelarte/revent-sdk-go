@@ -57,9 +57,12 @@ func TestClientRegistrationDoSuccess(t *testing.T) {
 			ClientID: "my-client",
 		},
 	}
-	registration := NewClientRegistration(slog.Default(), revent.ClientID("my-client"), []revent.QueryID{})
+	registration := NewClientRegistration(slog.Default(), m)
 
-	err := registration.Do(t.Context(), m)
+	err := registration.Do(t.Context(), ClientRegistrationParams{
+		ClientID:      "my-client",
+		QueryHandlers: []revent.QueryID{},
+	})
 	if err != nil {
 		t.Fatalf("Do() error = %v, want nil", err)
 	}
@@ -72,9 +75,12 @@ func TestClientRegistrationDoServerError(t *testing.T) {
 			Reason:   "duplicate client id",
 		},
 	}
-	registration := NewClientRegistration(slog.Default(), revent.ClientID("my-client"), []revent.QueryID{})
+	registration := NewClientRegistration(slog.Default(), m)
 
-	err := registration.Do(t.Context(), m)
+	err := registration.Do(t.Context(), ClientRegistrationParams{
+		ClientID:      "my-client",
+		QueryHandlers: []revent.QueryID{},
+	})
 	if err == nil {
 		t.Fatal("Do() error = nil, want server error")
 	}
@@ -84,10 +90,15 @@ func TestClientRegistrationDoTimeout(t *testing.T) {
 	m := &fakeRegistrationManager{
 		response: nil,
 	}
-	registration := NewClientRegistration(slog.Default(), revent.ClientID("my-client"), []revent.QueryID{})
-	registration.timeout = 10 * time.Millisecond
+	registration := NewClientRegistration(slog.Default(), m)
 
-	err := registration.Do(t.Context(), m)
+	newCtx, cancel := context.WithTimeout(t.Context(), 10*time.Millisecond)
+	defer cancel()
+
+	err := registration.Do(newCtx, ClientRegistrationParams{
+		ClientID:      "my-client",
+		QueryHandlers: []revent.QueryID{},
+	})
 	if err == nil {
 		t.Fatal("Do() error = nil, want timeout")
 	}
@@ -103,10 +114,15 @@ func TestClientRegistrationDoTimeoutWhenMessageDoesNotMatchPredicate(t *testing.
 			ClientID: "other-client",
 		},
 	}
-	registration := NewClientRegistration(slog.Default(), revent.ClientID("my-client"), []revent.QueryID{})
-	registration.timeout = 10 * time.Millisecond
+	registration := NewClientRegistration(slog.Default(), m)
 
-	err := registration.Do(t.Context(), m)
+	newCtx, cancel := context.WithTimeout(t.Context(), 10*time.Millisecond)
+	defer cancel()
+
+	err := registration.Do(newCtx, ClientRegistrationParams{
+		ClientID:      "my-client",
+		QueryHandlers: []revent.QueryID{},
+	})
 	if err == nil {
 		t.Fatal("Do() error = nil, want timeout")
 	}

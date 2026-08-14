@@ -3,6 +3,7 @@ package revent_sdk_go
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/manuelarte/revent-sdk-go/internal/revent/actions"
 	"github.com/manuelarte/revent-sdk-go/internal/txrx"
@@ -66,16 +67,20 @@ func QueryRequest[I revent.QueryRequestParameters, O revent.QueryResponse](
 	query revent.Query[I, O],
 	params I,
 ) (O, error) {
-	queryRequisition := actions.NewQueryRequisition(s.logger, requestID, query)
-
-	type sendAndSubscribe struct {
-		*ServerManager
+	x := struct {
 		txrx.TxRx
+		*ServerManager
+	}{
+		s.txRx,
+		s,
 	}
+	qr := actions.NewQueryRequisition[I, O](s.logger, x)
 
-	x := sendAndSubscribe{s, s.txRx}
-
-	err := queryRequisition.Do(ctx, x)
+	err := qr.Do(ctx, actions.QueryRequisitionParams[I, O]{
+		RequestID: requestID,
+		QueryID:   query,
+		Params:    params,
+	})
 	if err != nil {
 		var zero O
 
@@ -89,18 +94,22 @@ func QueryRequest[I revent.QueryRequestParameters, O revent.QueryResponse](
 
 func registerClient(s *ServerManager) func(ctx context.Context) error {
 	return func(ctx context.Context) error {
-		type sendAndSubscribe struct {
-			*ServerManager
+		x := struct {
 			txrx.TxRx
+			*ServerManager
+		}{
+			s.txRx,
+			s,
 		}
+		cr := actions.NewClientRegistration(s.logger, x)
 
-		x := sendAndSubscribe{s, s.txRx}
+		waitCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		defer cancel()
 
-		errReg := actions.NewClientRegistration(
-			s.logger,
-			s.clientID,
-			s.getQueryHandlerIDs(),
-		).Do(ctx, x)
+		errReg := cr.Do(waitCtx, actions.ClientRegistrationParams{
+			ClientID:      s.clientID,
+			QueryHandlers: s.getQueryHandlerIDs(),
+		})
 		if errReg != nil {
 			return fmt.Errorf("failed to register client: %w", errReg)
 		}
