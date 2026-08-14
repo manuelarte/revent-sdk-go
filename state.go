@@ -8,12 +8,11 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/manuelarte/revent-sdk-go/internal"
-	"github.com/manuelarte/revent-sdk-go/internal/flows"
 	"github.com/manuelarte/revent-sdk-go/logger"
 	"github.com/manuelarte/revent-sdk-go/revent"
 )
 
-var _ internal.ClientManager = new(State)
+var _ internal.SubscriptionManager = new(State)
 
 // State manages a persistent gRPC connection with automatic reconnection
 //
@@ -49,37 +48,6 @@ func NewState(cfg Config) (*State, error) {
 		subscribers:   make(map[uuid.UUID]stateSubscription),
 		queryHandlers: make(map[revent.QueryID]any),
 	}, nil
-}
-
-func (s *State) RegisterClient(ctx context.Context) error {
-	type sendAndSubscribe struct {
-		*State
-		TxRx
-	}
-
-	x := sendAndSubscribe{s, s.txRx}
-
-	errReg := flows.NewClientRegistration(
-		s.logger,
-		s.clientID,
-		s.getQueryHandlerIDs(),
-	).Do(ctx, x)
-	if errReg != nil {
-		return fmt.Errorf("failed to register client: %w", errReg)
-	}
-
-	s.logger.Info("Client registered successfully", "clientID", s.clientID)
-
-	return nil
-}
-
-func (s *State) QueryRequest(
-	ctx context.Context,
-	requestID revent.RequestID,
-	queryID revent.QueryID,
-) (revent.QueryResponse, error) {
-	// TODO: rethink this because of losing type parameters since method not allowing generics yet
-	panic("not implemented yet")
 }
 
 func (s *State) Subscribe(

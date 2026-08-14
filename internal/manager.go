@@ -1,8 +1,6 @@
 package internal
 
 import (
-	"context"
-
 	"github.com/google/uuid"
 
 	"github.com/manuelarte/revent-sdk-go/revent"
@@ -19,17 +17,5 @@ type (
 		) error
 		// Unsubscribe unsubscribes from a stream based on the given ID.
 		Unsubscribe(id uuid.UUID) error
-	}
-
-	// FlowManager manages the different flows of messages between the client and the server.
-	FlowManager interface {
-		RegisterClient(ctx context.Context) error
-		QueryRequest(ctx context.Context, requestID revent.RequestID, queryID revent.QueryID) (revent.QueryResponse, error)
-	}
-
-	// ClientManager manages the client registration and query requests.
-	ClientManager interface {
-		SubscriptionManager
-		FlowManager
 	}
 )

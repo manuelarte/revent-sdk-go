@@ -73,9 +73,7 @@ type (
 		incoming chan revent.ServerMsg
 	}
 
-	clientRegistrar interface {
-		RegisterClient(ctx context.Context) error
-	}
+	clientRegistrar func(ctx context.Context) error
 
 	connectionState string
 )
@@ -148,7 +146,7 @@ func NewGRPCTxRx(
 
 				txRx.logger.Info("Connected to gRPC server")
 
-				errReg := registrar.RegisterClient(ctx)
+				errReg := registrar(ctx)
 				if errReg != nil {
 					txRx.logger.Error("Failed to register client", "error", errReg)
 

@@ -15,7 +15,7 @@ func OpenSession(ctx context.Context, s *State, cfg txrx.GrpcConfig) error {
 
 	s.once.Do(func() {
 		createTxRxFn := func() (TxRx, <-chan error, error) {
-			return txrx.NewGRPCTxRx(ctx, s.logger, cfg, s)
+			return txrx.NewGRPCTxRx(ctx, s.logger, cfg, registerClient(s))
 		}
 		err = s.start(ctx, createTxRxFn)
 	})
@@ -85,4 +85,28 @@ func QueryRequest[I revent.QueryRequestParameters, O revent.QueryResponse](
 	var zero O
 
 	return zero, nil
+}
+
+func registerClient(s *State) func(ctx context.Context) error {
+	return func(ctx context.Context) error {
+		type sendAndSubscribe struct {
+			*State
+			TxRx
+		}
+
+		x := sendAndSubscribe{s, s.txRx}
+
+		errReg := flows.NewClientRegistration(
+			s.logger,
+			s.clientID,
+			s.getQueryHandlerIDs(),
+		).Do(ctx, x)
+		if errReg != nil {
+			return fmt.Errorf("failed to register client: %w", errReg)
+		}
+
+		s.logger.Info("Client registered successfully", "clientID", s.clientID)
+
+		return nil
+	}
 }
