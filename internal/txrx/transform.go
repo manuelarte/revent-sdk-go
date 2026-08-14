@@ -49,8 +49,17 @@ func transformClientMessageToGRPC(msg messages.ClientMsg) (*reventv1.ClientToSer
 func transformServerMessageToGRPC(msg *reventv1.ServerToClientMessage) (messages.ServerMsg, error) {
 	switch casted := msg.GetPayload().(type) {
 	case *reventv1.ServerToClientMessage_ClientRegistered:
-		return &messages.ClientRegisteredMsg{
-			ClientID: revent.ClientID(casted.ClientRegistered.GetClientId()),
+		return &messages.ClientRegistrationResponseMsg{
+			Msg: &messages.ClientRegisteredMsg{
+				ClientID: revent.ClientID(casted.ClientRegistered.GetClientId()),
+			},
+		}, nil
+	case *reventv1.ServerToClientMessage_ClientRegistrationError:
+		return &messages.ClientRegistrationResponseMsg{
+			Err: &messages.ClientRegistrationErrorMsg{
+				ClientID: revent.ClientID(casted.ClientRegistrationError.GetClientId()),
+				Reason:   casted.ClientRegistrationError.GetReason(),
+			},
 		}, nil
 	case *reventv1.ServerToClientMessage_QueryResponded:
 		return &messages.QueryResponseRawMsg{

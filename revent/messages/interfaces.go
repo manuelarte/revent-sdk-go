@@ -9,6 +9,10 @@ type (
 		GetRequestID() revent.RequestID
 	}
 
+	ClientIdentifiable interface {
+		ClientID() revent.ClientID
+	}
+
 	ClientMsg interface {
 		Msg
 		clientMessage()
