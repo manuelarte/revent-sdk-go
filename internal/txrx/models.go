@@ -5,9 +5,10 @@ import (
 )
 
 const (
-	ConnectedState    ConnectionState = "Connected"
-	ConnectingState   ConnectionState = "Connecting"
-	DisconnectedState ConnectionState = "Disconnected"
+	ClientRegisteredState ConnectionState = "ClientRegistered"
+	ConnectedState        ConnectionState = "Connected"
+	ConnectingState       ConnectionState = "Connecting"
+	DisconnectedState     ConnectionState = "Disconnected"
 )
 
 type (

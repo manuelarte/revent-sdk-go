@@ -56,7 +56,7 @@ func run(logger *slog.Logger) error {
 	// add http server with endpoint to ask for users by id
 
 	// Wait until the session reports a connected state before sending queries.
-connectedLoop:
+clientRegisteredLoop:
 	for {
 		select {
 		case <-ctx.Done():
@@ -66,9 +66,9 @@ connectedLoop:
 			// Examples could be:
 			//   if stateEvent.State == reventsdkgo.ConnectedState { ... }
 			//   if stateEvent.IsConnected() { ... }
-			if stateEvent == txrx.ConnectedState {
+			if stateEvent == txrx.ClientRegisteredState {
 				logger.InfoContext(ctx, "Session connected", slog.Any("clientID", clientID))
-				break connectedLoop
+				break clientRegisteredLoop
 			}
 		}
 	}
