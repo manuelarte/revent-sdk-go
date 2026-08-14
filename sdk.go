@@ -9,8 +9,8 @@ import (
 	"github.com/manuelarte/revent-sdk-go/revent"
 )
 
-// OpenSession starts a session and can be called only once per State instance.
-func OpenSession(ctx context.Context, s *State, cfg txrx.GrpcConfig) error {
+// OpenSession starts a session and can be called only once per ServerManager instance.
+func OpenSession(ctx context.Context, s *ServerManager, cfg txrx.GrpcConfig) error {
 	var err error
 
 	s.once.Do(func() {
@@ -34,7 +34,7 @@ func RegisterQueryHandler[
 	I revent.QueryRequestParameters,
 	O revent.QueryResponse,
 ](
-	s *State,
+	s *ServerManager,
 	query revent.Query[I, O],
 	qh revent.QueryHandlerFunc[I, O],
 ) error {
@@ -61,7 +61,7 @@ func RegisterSourceEventHandler[E revent.Event, S revent.SourceEvent[E]](eh reve
 
 func QueryRequest[I revent.QueryRequestParameters, O revent.QueryResponse](
 	ctx context.Context,
-	s *State,
+	s *ServerManager,
 	requestID revent.RequestID,
 	query revent.Query[I, O],
 	params I,
@@ -69,7 +69,7 @@ func QueryRequest[I revent.QueryRequestParameters, O revent.QueryResponse](
 	queryRequisition := flows.NewQueryRequisition(s.logger, requestID, query)
 
 	type sendAndSubscribe struct {
-		*State
+		*ServerManager
 		TxRx
 	}
 
@@ -87,10 +87,10 @@ func QueryRequest[I revent.QueryRequestParameters, O revent.QueryResponse](
 	return zero, nil
 }
 
-func registerClient(s *State) func(ctx context.Context) error {
+func registerClient(s *ServerManager) func(ctx context.Context) error {
 	return func(ctx context.Context) error {
 		type sendAndSubscribe struct {
-			*State
+			*ServerManager
 			TxRx
 		}
 

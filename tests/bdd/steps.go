@@ -21,7 +21,7 @@ const (
 type scenarioState struct {
 	serverInfo *serverInfo
 	cfg        reventsdkgo.Config
-	state      *reventsdkgo.State
+	state      *reventsdkgo.ServerManager
 	// we subscribe to every single message to do the checks later on.
 	subID             uuid.UUID
 	registrationCh    chan revent.ServerMsg

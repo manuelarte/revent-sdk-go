@@ -12,13 +12,20 @@ import (
 	"github.com/manuelarte/revent-sdk-go/revent"
 )
 
-var _ internal.SubscriptionManager = new(State)
+const (
+	connectedState    state = "Connected"
+	notConnectedState state = "NotConnected"
+)
 
-// State manages a persistent gRPC connection with automatic reconnection
-//
-//go:structinit
+var _ internal.SubscriptionManager = new(ServerManager)
+
 type (
-	State struct {
+	state string
+
+	// ServerManager manages a persistent gRPC connection with automatic reconnection
+	//
+	//go:structinit
+	ServerManager struct {
 		logger   logger.ILogger
 		clientID revent.ClientID
 
@@ -37,12 +44,12 @@ type (
 	}
 )
 
-func NewState(cfg Config) (*State, error) {
+func NewState(cfg Config) (*ServerManager, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config: %w", err)
 	}
 
-	return &State{
+	return &ServerManager{
 		logger:        cfg.Logger,
 		clientID:      cfg.ClientID,
 		subscribers:   make(map[uuid.UUID]stateSubscription),
@@ -50,7 +57,7 @@ func NewState(cfg Config) (*State, error) {
 	}, nil
 }
 
-func (s *State) Subscribe(
+func (s *ServerManager) Subscribe(
 	id uuid.UUID,
 	pred func(msg revent.ServerMsg) bool,
 	ch chan<- revent.ServerMsg,
@@ -63,7 +70,7 @@ func (s *State) Subscribe(
 	return nil
 }
 
-func (s *State) Unsubscribe(id uuid.UUID) error {
+func (s *ServerManager) Unsubscribe(id uuid.UUID) error {
 	s.muSubscribers.Lock()
 	defer s.muSubscribers.Unlock()
 
@@ -73,7 +80,7 @@ func (s *State) Unsubscribe(id uuid.UUID) error {
 }
 
 // start creates the txRx connection and blocks until the connection is closed.
-func (s *State) start(ctx context.Context, createTxRxFn func() (TxRx, <-chan error, error)) error {
+func (s *ServerManager) start(ctx context.Context, createTxRxFn func() (TxRx, <-chan error, error)) error {
 	txRx, txRxErrChan, err := createTxRxFn()
 	if err != nil {
 		return fmt.Errorf("failed to create gRPC TxRx: %w", err)
@@ -92,7 +99,6 @@ func (s *State) start(ctx context.Context, createTxRxFn func() (TxRx, <-chan err
 
 				continue
 			}
-
 			s.dispatchServerMessage(msg)
 		case errTxRx, ok := <-txRxErrChan:
 			if !ok {
@@ -104,7 +110,7 @@ func (s *State) start(ctx context.Context, createTxRxFn func() (TxRx, <-chan err
 	}
 }
 
-func (s *State) dispatchServerMessage(msg revent.ServerMsg) {
+func (s *ServerManager) dispatchServerMessage(msg revent.ServerMsg) {
 	if msg == nil {
 		return
 	}
@@ -131,7 +137,7 @@ func (s *State) dispatchServerMessage(msg revent.ServerMsg) {
 	}
 }
 
-func (s *State) getQueryHandlerIDs() []revent.QueryID {
+func (s *ServerManager) getQueryHandlerIDs() []revent.QueryID {
 	s.muQueryHandlers.RLock()
 	defer s.muQueryHandlers.RUnlock()
 
