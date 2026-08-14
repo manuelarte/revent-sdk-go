@@ -111,12 +111,29 @@ func (s *ServerManager) start(
 			}
 
 			if sessionEvent.Err == nil {
-				s.stateChan <- sessionEvent.State
+				s.publishStateChange(sessionEvent.State)
 
 				continue
 			}
 
 			return fmt.Errorf("gRPC TxRx error: %w", sessionEvent.Err)
+		}
+	}
+}
+
+func (s *ServerManager) publishStateChange(state txrx.ConnectionState) {
+	select {
+	case s.stateChan <- state:
+	default:
+		// Keep the channel non-blocking and prefer the latest state.
+		select {
+		case <-s.stateChan:
+		default:
+		}
+
+		select {
+		case s.stateChan <- state:
+		default:
 		}
 	}
 }
