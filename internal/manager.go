@@ -3,7 +3,7 @@ package internal
 import (
 	"github.com/google/uuid"
 
-	"github.com/manuelarte/revent-sdk-go/revent"
+	"github.com/manuelarte/revent-sdk-go/revent/messages"
 )
 
 type (
@@ -12,8 +12,8 @@ type (
 	SubscriptionManager interface {
 		Subscribe(
 			id uuid.UUID,
-			pred func(msg revent.ServerMsg) bool,
-			ch chan<- revent.ServerMsg,
+			pred func(msg messages.ServerMsg) bool,
+			ch chan<- messages.ServerMsg,
 		)
 		// Unsubscribe unsubscribes from a stream based on the given ID.
 		Unsubscribe(id uuid.UUID) error

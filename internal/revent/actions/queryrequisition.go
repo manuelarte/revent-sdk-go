@@ -8,6 +8,7 @@ import (
 
 	"github.com/manuelarte/revent-sdk-go/logger"
 	"github.com/manuelarte/revent-sdk-go/revent"
+	"github.com/manuelarte/revent-sdk-go/revent/messages"
 )
 
 type (
@@ -25,7 +26,7 @@ type (
 
 	QueryRequisitionResponse[O revent.QueryResponse] struct {
 		Response O
-		Err      *revent.QueryRequestedErrorMsg
+		Err      *messages.QueryRequestedErrorMsg
 	}
 )
 
@@ -52,14 +53,14 @@ func (c *QueryRequisition[I, O]) Do(
 	ctx context.Context,
 	params QueryRequisitionParams[I, O],
 ) (*QueryRequisitionResponse[O], error) {
-	queryRequestEvents := make(chan revent.ServerMsg, 1)
+	queryRequestEvents := make(chan messages.ServerMsg, 1)
 
-	c.m.Subscribe(uuid.UUID(params.RequestID), func(msg revent.ServerMsg) bool {
+	c.m.Subscribe(uuid.UUID(params.RequestID), func(msg messages.ServerMsg) bool {
 		if msg == nil {
 			return false
 		}
 
-		if identifiable, ok := msg.(revent.IdempotentMsg); ok {
+		if identifiable, ok := msg.(messages.IdempotentMsg); ok {
 			return identifiable.GetRequestID().String() == params.RequestID.String()
 		}
 
@@ -70,7 +71,7 @@ func (c *QueryRequisition[I, O]) Do(
 		_ = c.m.Unsubscribe(uuid.UUID(params.RequestID))
 	}()
 
-	err := c.m.Send(&revent.QueryRequestMsg{
+	err := c.m.Send(&messages.QueryRequestMsg{
 		RequestID:  params.RequestID,
 		QueryID:    revent.QueryID(params.QueryID),
 		Parameters: nil,
@@ -84,23 +85,23 @@ func (c *QueryRequisition[I, O]) Do(
 		return nil, fmt.Errorf("error waiting for query response: %w", ctx.Err())
 	case msg := <-queryRequestEvents:
 		switch payload := msg.(type) {
-		case *revent.QueryResponseRawMsg:
+		case *messages.QueryResponseRawMsg:
 			var zero O
 
 			errUnmarshal := zero.UnmarshalJSON(payload.Response)
 
 			return &QueryRequisitionResponse[O]{
 				Response: zero,
-				Err: &revent.QueryRequestedErrorMsg{
+				Err: &messages.QueryRequestedErrorMsg{
 					RequestID: payload.RequestID,
 					QueryID:   revent.QueryID(params.QueryID),
-					Reason:    revent.QueryRequestedErrorReasonUnmarshalError,
+					Reason:    messages.QueryRequestedErrorReasonUnmarshalError,
 					Details:   errUnmarshal.Error(),
 				},
 			}, nil
-		case *revent.QueryRequestedErrorRawMsg:
+		case *messages.QueryRequestedErrorRawMsg:
 			return &QueryRequisitionResponse[O]{
-				Err: &revent.QueryRequestedErrorMsg{
+				Err: &messages.QueryRequestedErrorMsg{
 					RequestID: payload.RequestID,
 					QueryID:   revent.QueryID(params.QueryID),
 					Reason:    payload.Reason,

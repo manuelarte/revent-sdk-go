@@ -18,7 +18,7 @@ import (
 	reventv1 "github.com/manuelarte/revent-sdk-go/internal/api/gRPC/revent/v1"
 	backoff2 "github.com/manuelarte/revent-sdk-go/internal/backoff"
 	"github.com/manuelarte/revent-sdk-go/logger"
-	"github.com/manuelarte/revent-sdk-go/revent"
+	"github.com/manuelarte/revent-sdk-go/revent/messages"
 )
 
 const (
@@ -69,7 +69,7 @@ type (
 		mu       sync.RWMutex
 		conn     *grpc.ClientConn
 		stream   grpc.BidiStreamingClient[reventv1.ClientToServerMessage, reventv1.ServerToClientMessage]
-		incoming chan revent.ServerMsg
+		incoming chan messages.ServerMsg
 	}
 
 	clientRegistrar func(ctx context.Context) error
@@ -112,7 +112,7 @@ func NewGRPCTxRx(
 		logger:           logger,
 		state:            DisconnectedState,
 		sessionEventChan: make(chan SessionEvent, 1),
-		incoming:         make(chan revent.ServerMsg, bufferSize),
+		incoming:         make(chan messages.ServerMsg, bufferSize),
 	}
 	// launch goroutines to manage the connection
 	// run goroutines for connection management and stream listening
@@ -182,7 +182,7 @@ func NewGRPCTxRx(
 	return &txRx, nil
 }
 
-func (g *GRPC) Send(m revent.ClientMsg) error {
+func (g *GRPC) Send(m messages.ClientMsg) error {
 	stream := g.getStream()
 	if stream == nil {
 		return ErrStreamClosed
@@ -196,7 +196,7 @@ func (g *GRPC) Send(m revent.ClientMsg) error {
 	return stream.Send(msg)
 }
 
-func (g *GRPC) Incoming() <-chan revent.ServerMsg {
+func (g *GRPC) Incoming() <-chan messages.ServerMsg {
 	return g.incoming
 }
 

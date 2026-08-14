@@ -7,19 +7,20 @@ import (
 
 	reventv1 "github.com/manuelarte/revent-sdk-go/internal/api/gRPC/revent/v1"
 	"github.com/manuelarte/revent-sdk-go/revent"
+	"github.com/manuelarte/revent-sdk-go/revent/messages"
 )
 
 type UnknownMsgError struct {
-	Msg revent.Msg
+	Msg messages.Msg
 }
 
 func (e *UnknownMsgError) Error() string {
 	return fmt.Sprintf("do not know how to transform msg: %T", e.Msg)
 }
 
-func transformClientMessageToGRPC(msg revent.ClientMsg) (*reventv1.ClientToServerMessage, error) {
+func transformClientMessageToGRPC(msg messages.ClientMsg) (*reventv1.ClientToServerMessage, error) {
 	switch msg := msg.(type) {
-	case *revent.ClientRegistrationMsg:
+	case *messages.ClientRegistrationMsg:
 		return &reventv1.ClientToServerMessage{
 			Payload: &reventv1.ClientToServerMessage_RegisterClient{
 				RegisterClient: &reventv1.RegisterClient{
@@ -28,7 +29,7 @@ func transformClientMessageToGRPC(msg revent.ClientMsg) (*reventv1.ClientToServe
 				},
 			},
 		}, nil
-	case *revent.QueryRequestMsg:
+	case *messages.QueryRequestMsg:
 		return &reventv1.ClientToServerMessage{
 			Payload: &reventv1.ClientToServerMessage_QueryRequest{
 				QueryRequest: &reventv1.QueryRequest{
@@ -45,21 +46,21 @@ func transformClientMessageToGRPC(msg revent.ClientMsg) (*reventv1.ClientToServe
 	}
 }
 
-func transformServerMessageToGRPC(msg *reventv1.ServerToClientMessage) (revent.ServerMsg, error) {
+func transformServerMessageToGRPC(msg *reventv1.ServerToClientMessage) (messages.ServerMsg, error) {
 	switch casted := msg.GetPayload().(type) {
 	case *reventv1.ServerToClientMessage_ClientRegistered:
-		return &revent.ClientRegisteredMsg{
+		return &messages.ClientRegisteredMsg{
 			ClientID: revent.ClientID(casted.ClientRegistered.GetClientId()),
 		}, nil
 	case *reventv1.ServerToClientMessage_QueryResponded:
-		return &revent.QueryResponseRawMsg{
+		return &messages.QueryResponseRawMsg{
 			RequestID: revent.RequestID(uuid.MustParse(casted.QueryResponded.GetRequestId())),
 			Response:  casted.QueryResponded.GetResult(),
 		}, nil
 	case *reventv1.ServerToClientMessage_QueryRequestedError:
-		return &revent.QueryRequestedErrorRawMsg{
+		return &messages.QueryRequestedErrorRawMsg{
 			RequestID: revent.RequestID(uuid.MustParse(casted.QueryRequestedError.GetRequestId())),
-			Reason:    revent.QueryRequestedErrorReason(casted.QueryRequestedError.GetReason()),
+			Reason:    messages.QueryRequestedErrorReason(casted.QueryRequestedError.GetReason()),
 		}, nil
 	//nolint:nilnil // think about this later.
 	case *reventv1.ServerToClientMessage_Heartbeat:

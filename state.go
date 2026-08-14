@@ -11,6 +11,7 @@ import (
 	"github.com/manuelarte/revent-sdk-go/internal/txrx"
 	"github.com/manuelarte/revent-sdk-go/logger"
 	"github.com/manuelarte/revent-sdk-go/revent"
+	"github.com/manuelarte/revent-sdk-go/revent/messages"
 )
 
 var _ internal.SubscriptionManager = new(ServerManager)
@@ -35,8 +36,8 @@ type (
 	}
 
 	serverMessageSubscription struct {
-		predicate func(msg revent.ServerMsg) bool
-		ch        chan<- revent.ServerMsg
+		predicate func(msg messages.ServerMsg) bool
+		ch        chan<- messages.ServerMsg
 	}
 )
 
@@ -56,8 +57,8 @@ func NewState(cfg Config) (*ServerManager, error) {
 
 func (s *ServerManager) Subscribe(
 	id uuid.UUID,
-	pred func(msg revent.ServerMsg) bool,
-	ch chan<- revent.ServerMsg,
+	pred func(msg messages.ServerMsg) bool,
+	ch chan<- messages.ServerMsg,
 ) {
 	s.muSubscribers.Lock()
 	defer s.muSubscribers.Unlock()
@@ -120,7 +121,7 @@ func (s *ServerManager) start(
 	}
 }
 
-func (s *ServerManager) dispatchServerMessage(msg revent.ServerMsg) {
+func (s *ServerManager) dispatchServerMessage(msg messages.ServerMsg) {
 	if msg == nil {
 		return
 	}

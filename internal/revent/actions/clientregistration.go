@@ -8,6 +8,7 @@ import (
 
 	"github.com/manuelarte/revent-sdk-go/logger"
 	"github.com/manuelarte/revent-sdk-go/revent"
+	"github.com/manuelarte/revent-sdk-go/revent/messages"
 )
 
 type (
@@ -22,7 +23,7 @@ type (
 	}
 
 	ClientRegistrationResponse struct {
-		Msg *revent.ClientRegisteredMsg
+		Msg *messages.ClientRegisteredMsg
 		Err error
 	}
 )
@@ -51,15 +52,15 @@ func (c *ClientRegistration) Do(
 	params ClientRegistrationParams,
 ) (*ClientRegistrationResponse, error) {
 	subscriptionID := uuid.New()
-	registrationEvents := make(chan revent.ServerMsg, 1)
+	registrationEvents := make(chan messages.ServerMsg, 1)
 
-	c.m.Subscribe(subscriptionID, func(msg revent.ServerMsg) bool {
+	c.m.Subscribe(subscriptionID, func(msg messages.ServerMsg) bool {
 		if msg == nil {
 			return false
 		}
 
 		switch payload := msg.(type) {
-		case *revent.ClientRegisteredMsg:
+		case *messages.ClientRegisteredMsg:
 			return payload.ClientID == params.ClientID
 		default:
 			return false
@@ -70,7 +71,7 @@ func (c *ClientRegistration) Do(
 		_ = c.m.Unsubscribe(subscriptionID)
 	}()
 
-	err := c.m.Send(&revent.ClientRegistrationMsg{
+	err := c.m.Send(&messages.ClientRegistrationMsg{
 		ClientID:      params.ClientID,
 		QueryHandlers: params.QueryHandlers,
 	})
@@ -83,12 +84,12 @@ func (c *ClientRegistration) Do(
 		return nil, fmt.Errorf("error waiting for client registration: %w", ctx.Err())
 	case msg := <-registrationEvents:
 		switch payload := msg.(type) {
-		case *revent.ClientRegisteredMsg:
+		case *messages.ClientRegisteredMsg:
 			return &ClientRegistrationResponse{
 				Msg: payload,
 				Err: nil,
 			}, nil
-		case *revent.ClientRegistrationErrorMsg:
+		case *messages.ClientRegistrationErrorMsg:
 			return &ClientRegistrationResponse{
 				Msg: nil,
 				Err: payload,

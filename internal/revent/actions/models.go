@@ -4,14 +4,14 @@ import (
 	"fmt"
 
 	"github.com/manuelarte/revent-sdk-go/internal"
-	"github.com/manuelarte/revent-sdk-go/revent"
+	"github.com/manuelarte/revent-sdk-go/revent/messages"
 )
 
 var _ error = new(UnexpectedMsgError)
 
 type (
 	Sender interface {
-		Send(msg revent.ClientMsg) error
+		Send(msg messages.ClientMsg) error
 	}
 
 	SendAndSubscribe interface {
