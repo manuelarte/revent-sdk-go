@@ -94,7 +94,7 @@ func (c *QueryRequisition[I, O]) Do(
 				Err: &revent.QueryRequestedErrorMsg{
 					RequestID: payload.RequestID,
 					QueryID:   revent.QueryID(params.QueryID),
-					Reason:    "Unmarshal error",
+					Reason:    revent.QueryRequestedErrorReasonUnmarshalError,
 					Details:   errUnmarshal.Error(),
 				},
 			}, nil

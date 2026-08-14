@@ -4,6 +4,13 @@ import (
 	"fmt"
 )
 
+const (
+	QueryRequestedErrorReasonRequestIdDuplicated  QueryRequestedErrorReason = "RequestIdDuplicated"
+	QueryRequestedErrorReasonQueryHandlerNotFound QueryRequestedErrorReason = "QueryHandlerNotFound"
+	QueryRequestedErrorReasonQueryTimedOut        QueryRequestedErrorReason = "QueryTimedOut"
+	QueryRequestedErrorReasonUnmarshalError       QueryRequestedErrorReason = "UnmarshalError"
+)
+
 var (
 	_ ClientMsg = new(ClientRegistrationMsg)
 	_ ServerMsg = new(ClientRegisteredMsg)
@@ -61,16 +68,18 @@ type (
 		Response  []byte
 	}
 
+	QueryRequestedErrorReason string
+
 	QueryRequestedErrorRawMsg struct {
 		RequestID RequestID
-		Reason    string
+		Reason    QueryRequestedErrorReason
 	}
 
 	//nolint:errname // keep consistency with Msg at the end
 	QueryRequestedErrorMsg struct {
 		RequestID RequestID
 		QueryID   QueryID
-		Reason    string
+		Reason    QueryRequestedErrorReason
 		Details   string
 	}
 )
