@@ -36,6 +36,7 @@ func run(logger *slog.Logger) error {
 	uqh := userQueryHandler{users: make(map[int]user)}
 
 	errRegisteringHandlers := errors.Join(
+		// TODO: do flow of handle query so then the query part is finished.
 		reventsdkgo.RegisterQueryHandler(s, getUserByID, uqh.GetUserByID),
 		reventsdkgo.RegisterSourceEventHandler(uqh.OnUserCreatedEvent),
 	)
