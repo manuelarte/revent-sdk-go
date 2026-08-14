@@ -20,6 +20,11 @@ type (
 		ClientID      revent.ClientID
 		QueryHandlers []revent.QueryID
 	}
+
+	ClientRegistrationResponse struct {
+		Msg *revent.ClientRegisteredMsg
+		Err error
+	}
 )
 
 func NewClientRegistration(
@@ -35,7 +40,7 @@ func NewClientRegistration(
 func (c *ClientRegistration) Do(
 	ctx context.Context,
 	params ClientRegistrationParams,
-) error {
+) (*ClientRegistrationResponse, error) {
 	subscriptionID := uuid.New()
 	registrationEvents := make(chan revent.ServerMsg, 1)
 
@@ -52,7 +57,7 @@ func (c *ClientRegistration) Do(
 		}
 	}, registrationEvents)
 	if err != nil {
-		return fmt.Errorf("error creating registration listener: %w", err)
+		return nil, fmt.Errorf("error creating registration listener: %w", err)
 	}
 
 	defer func() {
@@ -64,20 +69,26 @@ func (c *ClientRegistration) Do(
 		QueryHandlers: params.QueryHandlers,
 	})
 	if err != nil {
-		return fmt.Errorf("error sending client registration: %w", err)
+		return nil, fmt.Errorf("error sending client registration: %w", err)
 	}
 
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("error waiting for client registration: %w", ctx.Err())
+		return nil, fmt.Errorf("error waiting for client registration: %w", ctx.Err())
 	case msg := <-registrationEvents:
 		switch payload := msg.(type) {
 		case *revent.ClientRegisteredMsg:
-			return nil
+			return &ClientRegistrationResponse{
+				Msg: payload,
+				Err: nil,
+			}, nil
 		case *revent.ClientRegistrationErrorMsg:
-			return payload
+			return &ClientRegistrationResponse{
+				Msg: nil,
+				Err: payload,
+			}, nil
 		default:
-			return UnexpectedMsgError{
+			return nil, UnexpectedMsgError{
 				Flow: "ClientRegistration",
 				Msg:  payload,
 			}

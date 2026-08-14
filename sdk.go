@@ -106,7 +106,7 @@ func registerClient(s *ServerManager) func(ctx context.Context) error {
 		waitCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 		defer cancel()
 
-		errReg := cr.Do(waitCtx, actions.ClientRegistrationParams{
+		output, errReg := cr.Do(waitCtx, actions.ClientRegistrationParams{
 			ClientID:      s.clientID,
 			QueryHandlers: s.getQueryHandlerIDs(),
 		})
@@ -114,7 +114,11 @@ func registerClient(s *ServerManager) func(ctx context.Context) error {
 			return fmt.Errorf("failed to register client: %w", errReg)
 		}
 
-		s.logger.Info("Client registered successfully", "clientID", s.clientID)
+		if output.Err != nil {
+			return fmt.Errorf("failed to register client: %w", output.Err)
+		}
+
+		s.logger.Info("Client registered successfully", "msg", output.Msg)
 
 		return nil
 	}
