@@ -25,7 +25,7 @@ type (
 
 	QueryRequisitionResponse[O revent.QueryResponse] struct {
 		Response O
-		Err      error
+		Err      *revent.QueryResponseErrorMsg
 	}
 )
 
@@ -39,28 +39,38 @@ func NewQueryRequisition[I revent.QueryRequestParameters, O revent.QueryResponse
 	}
 }
 
-func (c *QueryRequisition[I, O]) Do(ctx context.Context, params QueryRequisitionParams[I, O]) (*QueryRequisitionResponse[O], error) {
+// Do send a QueryRequest, waits for the QueryResponse, and returns it.
+// Output:
+// It returns the output of the query response, that it could be:
+// - revent.QueryResponse
+// - revent.QueryResponseErrorMsg
+// Errors:
+// - error coming from trying to send the QueryRequest.
+// - context error: if the context is canceled.
+// - UnexpectedMsgError: if the received message is not expected.
+func (c *QueryRequisition[I, O]) Do(
+	ctx context.Context,
+	params QueryRequisitionParams[I, O],
+) (*QueryRequisitionResponse[O], error) {
 	queryRequestEvents := make(chan revent.ServerMsg, 1)
 
-	err := c.m.Subscribe(uuid.UUID(params.RequestID), func(msg revent.ServerMsg) bool {
+	c.m.Subscribe(uuid.UUID(params.RequestID), func(msg revent.ServerMsg) bool {
 		if msg == nil {
 			return false
 		}
 
-		if identificable, ok := msg.(revent.IdempotentMsg); ok {
-			return identificable.GetRequestID().String() == params.RequestID.String()
+		if identifiable, ok := msg.(revent.IdempotentMsg); ok {
+			return identifiable.GetRequestID().String() == params.RequestID.String()
 		}
+
 		return false
 	}, queryRequestEvents)
-	if err != nil {
-		return nil, fmt.Errorf("error creating query responsed listener: %w", err)
-	}
 
 	defer func() {
 		_ = c.m.Unsubscribe(uuid.UUID(params.RequestID))
 	}()
 
-	err = c.m.Send(&revent.QueryRequestMsg{
+	err := c.m.Send(&revent.QueryRequestMsg{
 		RequestID:  params.RequestID,
 		QueryID:    revent.QueryID(params.QueryID),
 		Parameters: nil,
@@ -75,8 +85,18 @@ func (c *QueryRequisition[I, O]) Do(ctx context.Context, params QueryRequisition
 	case msg := <-queryRequestEvents:
 		switch payload := msg.(type) {
 		case *revent.QueryResponseRawMsg:
+			var zero O
+
+			errUnmarshal := zero.UnmarshalJSON(payload.Response)
+
 			return &QueryRequisitionResponse[O]{
-				Response: payload.Response,
+				Response: zero,
+				Err: &revent.QueryResponseErrorMsg{
+					RequestID: payload.RequestID,
+					QueryID:   revent.QueryID(params.QueryID),
+					Reason:    "Unmarshal error",
+					Details:   errUnmarshal.Error(),
+				},
 			}, nil
 		case *revent.QueryResponseErrorRawMsg:
 			return &QueryRequisitionResponse[O]{

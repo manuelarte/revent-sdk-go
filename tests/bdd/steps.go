@@ -57,11 +57,9 @@ func (s *scenarioState) iOpenTheSDKSession(ctx context.Context) (context.Context
 	}
 
 	s.state = state
-	if errSubscribing := state.Subscribe(s.subID, func(msg revent.ServerMsg) bool {
+	state.Subscribe(s.subID, func(msg revent.ServerMsg) bool {
 		return true
-	}, s.registrationCh); errSubscribing != nil {
-		return ctx, fmt.Errorf("failed to subscribe: %w", errSubscribing)
-	}
+	}, s.registrationCh)
 
 	newCancelCtx, cancel := context.WithCancel(ctx)
 	s.openSessionCancel = cancel

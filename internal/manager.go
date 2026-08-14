@@ -14,7 +14,7 @@ type (
 			id uuid.UUID,
 			pred func(msg revent.ServerMsg) bool,
 			ch chan<- revent.ServerMsg,
-		) error
+		)
 		// Unsubscribe unsubscribes from a stream based on the given ID.
 		Unsubscribe(id uuid.UUID) error
 	}

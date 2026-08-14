@@ -88,9 +88,7 @@ func QueryRequest[I revent.QueryRequestParameters, O revent.QueryResponse](
 		return zero, fmt.Errorf("error sending query request: %w", err)
 	}
 
-	s.logger.Info("Query responded successfully", "requestID", requestID)
-
-	return output.Response, nil
+	return output.Response, output.Err
 }
 
 func registerClient(s *ServerManager) func(ctx context.Context) error {
@@ -119,7 +117,7 @@ func registerClient(s *ServerManager) func(ctx context.Context) error {
 			return fmt.Errorf("failed to register client: %w", output.Err)
 		}
 
-		s.logger.Info("Client registered successfully", "msg", output.Msg)
+		s.logger.Info("Client registered successfully", "clientId", output.Msg.ClientID)
 
 		return nil
 	}

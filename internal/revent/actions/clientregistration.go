@@ -37,6 +37,15 @@ func NewClientRegistration(
 	}
 }
 
+// Do send a ClientRegistrationMsg, waits for the ClientRegisteredMsg, and returns it.
+// Output:
+// It returns the output of the client registration response, that it could be:
+// - revent.ClientRegisteredMsg
+// - revent.ClientRegistrationErrorMsg
+// Errors:
+// - error coming from trying to send the ClientRegistrationMsg.
+// - context error: if the context is canceled.
+// - UnexpectedMsgError: if the received message is not expected.
 func (c *ClientRegistration) Do(
 	ctx context.Context,
 	params ClientRegistrationParams,
@@ -44,7 +53,7 @@ func (c *ClientRegistration) Do(
 	subscriptionID := uuid.New()
 	registrationEvents := make(chan revent.ServerMsg, 1)
 
-	err := c.m.Subscribe(subscriptionID, func(msg revent.ServerMsg) bool {
+	c.m.Subscribe(subscriptionID, func(msg revent.ServerMsg) bool {
 		if msg == nil {
 			return false
 		}
@@ -56,15 +65,12 @@ func (c *ClientRegistration) Do(
 			return false
 		}
 	}, registrationEvents)
-	if err != nil {
-		return nil, fmt.Errorf("error creating registration listener: %w", err)
-	}
 
 	defer func() {
 		_ = c.m.Unsubscribe(subscriptionID)
 	}()
 
-	err = c.m.Send(&revent.ClientRegistrationMsg{
+	err := c.m.Send(&revent.ClientRegistrationMsg{
 		ClientID:      params.ClientID,
 		QueryHandlers: params.QueryHandlers,
 	})

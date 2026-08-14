@@ -58,13 +58,11 @@ func (s *ServerManager) Subscribe(
 	id uuid.UUID,
 	pred func(msg revent.ServerMsg) bool,
 	ch chan<- revent.ServerMsg,
-) error {
+) {
 	s.muSubscribers.Lock()
 	defer s.muSubscribers.Unlock()
 
 	s.subscribers[id] = serverMessageSubscription{predicate: pred, ch: ch}
-
-	return nil
 }
 
 func (s *ServerManager) Unsubscribe(id uuid.UUID) error {

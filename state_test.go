@@ -2,6 +2,7 @@ package revent_sdk_go
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 
@@ -18,13 +19,21 @@ func (t *testQueryInput) UnmarshalJSON(_ []byte) error {
 	return nil
 }
 
+func (t *testQueryInput) MarshalJSON() ([]byte, error) {
+	return json.Marshal(t)
+}
+
 // testQueryOutput implements json.Marshaler.
 type testQueryOutput struct {
 	Result string `json:"result"`
 }
 
 func (t testQueryOutput) MarshalJSON() ([]byte, error) {
-	return []byte(`{"result":""}`), nil
+	return json.Marshal(t)
+}
+
+func (t testQueryOutput) UnmarshalJSON(_ []byte) error {
+	return nil
 }
 
 // Test NewState.

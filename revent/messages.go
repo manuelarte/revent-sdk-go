@@ -71,6 +71,7 @@ type (
 		RequestID RequestID
 		QueryID   QueryID
 		Reason    string
+		Details   string
 	}
 )
 

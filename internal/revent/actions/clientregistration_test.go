@@ -13,7 +13,6 @@ import (
 )
 
 type fakeRegistrationManager struct {
-	subscribeErr   error
 	unsubscribeErr error
 	predicate      func(msg revent.ServerMsg) bool
 	ch             chan<- revent.ServerMsg
@@ -36,15 +35,9 @@ func (f *fakeRegistrationManager) Subscribe(
 	_ uuid.UUID,
 	pred func(msg revent.ServerMsg) bool,
 	ch chan<- revent.ServerMsg,
-) error {
-	if f.subscribeErr != nil {
-		return f.subscribeErr
-	}
-
+) {
 	f.predicate = pred
 	f.ch = ch
-
-	return nil
 }
 
 func (f *fakeRegistrationManager) Unsubscribe(uuid.UUID) error {
@@ -59,12 +52,16 @@ func TestClientRegistrationDoSuccess(t *testing.T) {
 	}
 	registration := NewClientRegistration(slog.Default(), m)
 
-	err := registration.Do(t.Context(), ClientRegistrationParams{
+	output, err := registration.Do(t.Context(), ClientRegistrationParams{
 		ClientID:      "my-client",
 		QueryHandlers: []revent.QueryID{},
 	})
 	if err != nil {
 		t.Fatalf("Do() error = %v, want nil", err)
+	}
+
+	if output.Err != nil {
+		t.Fatalf("Do() output.Err = %v, want nil", output.Err)
 	}
 }
 
@@ -77,7 +74,7 @@ func TestClientRegistrationDoServerError(t *testing.T) {
 	}
 	registration := NewClientRegistration(slog.Default(), m)
 
-	err := registration.Do(t.Context(), ClientRegistrationParams{
+	_, err := registration.Do(t.Context(), ClientRegistrationParams{
 		ClientID:      "my-client",
 		QueryHandlers: []revent.QueryID{},
 	})
@@ -95,7 +92,7 @@ func TestClientRegistrationDoTimeout(t *testing.T) {
 	newCtx, cancel := context.WithTimeout(t.Context(), 10*time.Millisecond)
 	defer cancel()
 
-	err := registration.Do(newCtx, ClientRegistrationParams{
+	_, err := registration.Do(newCtx, ClientRegistrationParams{
 		ClientID:      "my-client",
 		QueryHandlers: []revent.QueryID{},
 	})
@@ -119,7 +116,7 @@ func TestClientRegistrationDoTimeoutWhenMessageDoesNotMatchPredicate(t *testing.
 	newCtx, cancel := context.WithTimeout(t.Context(), 10*time.Millisecond)
 	defer cancel()
 
-	err := registration.Do(newCtx, ClientRegistrationParams{
+	_, err := registration.Do(newCtx, ClientRegistrationParams{
 		ClientID:      "my-client",
 		QueryHandlers: []revent.QueryID{},
 	})

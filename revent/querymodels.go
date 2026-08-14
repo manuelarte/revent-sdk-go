@@ -16,8 +16,13 @@ type (
 	// QueryID defines the unique identifier for a query.
 	QueryID string
 
-	QueryRequestParameters json.Unmarshaler
-	QueryResponse          json.Marshaler
+	MarshalerAndUnmarshaler interface {
+		json.Unmarshaler
+		json.Marshaler
+	}
+
+	QueryRequestParameters MarshalerAndUnmarshaler
+	QueryResponse          MarshalerAndUnmarshaler
 
 	Query[I QueryRequestParameters, O QueryResponse]            QueryID
 	QueryHandlerFunc[I QueryRequestParameters, O QueryResponse] func(context.Context, I) O
