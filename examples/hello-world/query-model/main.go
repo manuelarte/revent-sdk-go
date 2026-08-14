@@ -56,6 +56,7 @@ func run(logger *slog.Logger) error {
 	// add http server with endpoint to ask for users by id
 
 	// Wait until the session reports a connected state before sending queries.
+connectedLoop:
 	for {
 		select {
 		case <-ctx.Done():
@@ -67,12 +68,11 @@ func run(logger *slog.Logger) error {
 			//   if stateEvent.IsConnected() { ... }
 			if stateEvent == txrx.ConnectedState {
 				logger.InfoContext(ctx, "Session connected", slog.Any("clientID", clientID))
-				goto connected
+				break connectedLoop
 			}
 		}
 	}
 
-connected:
 	requestID := revent.RequestID(uuid.New())
 	if _, errQueryRequest := reventsdkgo.QueryRequest(ctx, s, requestID, getAllUsers, getAllUsersParams{}); errQueryRequest != nil {
 		return fmt.Errorf("failed to send query request: %w", errQueryRequest)
