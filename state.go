@@ -8,20 +8,14 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/manuelarte/revent-sdk-go/internal"
+	"github.com/manuelarte/revent-sdk-go/internal/txrx"
 	"github.com/manuelarte/revent-sdk-go/logger"
 	"github.com/manuelarte/revent-sdk-go/revent"
-)
-
-const (
-	connectedState    state = "Connected"
-	notConnectedState state = "NotConnected"
 )
 
 var _ internal.SubscriptionManager = new(ServerManager)
 
 type (
-	state string
-
 	// ServerManager manages a persistent gRPC connection with automatic reconnection
 	//
 	//go:structinit
@@ -30,7 +24,7 @@ type (
 		clientID revent.ClientID
 
 		once sync.Once
-		txRx TxRx
+		txRx txrx.TxRx
 
 		muSubscribers   sync.RWMutex
 		subscribers     map[uuid.UUID]stateSubscription
@@ -80,7 +74,7 @@ func (s *ServerManager) Unsubscribe(id uuid.UUID) error {
 }
 
 // start creates the txRx connection and blocks until the connection is closed.
-func (s *ServerManager) start(ctx context.Context, createTxRxFn func() (TxRx, <-chan error, error)) error {
+func (s *ServerManager) start(ctx context.Context, createTxRxFn func() (txrx.TxRx, <-chan error, error)) error {
 	txRx, txRxErrChan, err := createTxRxFn()
 	if err != nil {
 		return fmt.Errorf("failed to create gRPC TxRx: %w", err)

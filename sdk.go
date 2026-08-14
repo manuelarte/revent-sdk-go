@@ -14,7 +14,7 @@ func OpenSession(ctx context.Context, s *ServerManager, cfg txrx.GrpcConfig) err
 	var err error
 
 	s.once.Do(func() {
-		createTxRxFn := func() (TxRx, <-chan error, error) {
+		createTxRxFn := func() (txrx.TxRx, <-chan error, error) {
 			return txrx.NewGRPCTxRx(ctx, s.logger, cfg, registerClient(s))
 		}
 		err = s.start(ctx, createTxRxFn)
@@ -70,7 +70,7 @@ func QueryRequest[I revent.QueryRequestParameters, O revent.QueryResponse](
 
 	type sendAndSubscribe struct {
 		*ServerManager
-		TxRx
+		txrx.TxRx
 	}
 
 	x := sendAndSubscribe{s, s.txRx}
@@ -91,7 +91,7 @@ func registerClient(s *ServerManager) func(ctx context.Context) error {
 	return func(ctx context.Context) error {
 		type sendAndSubscribe struct {
 			*ServerManager
-			TxRx
+			txrx.TxRx
 		}
 
 		x := sendAndSubscribe{s, s.txRx}
