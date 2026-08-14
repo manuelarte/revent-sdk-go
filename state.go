@@ -27,12 +27,12 @@ type (
 		txRx txrx.TxRx
 
 		muSubscribers   sync.RWMutex
-		subscribers     map[uuid.UUID]stateSubscription
+		subscribers     map[uuid.UUID]serverMessageSubscription
 		muQueryHandlers sync.RWMutex
 		queryHandlers   map[revent.QueryID]any
 	}
 
-	stateSubscription struct {
+	serverMessageSubscription struct {
 		predicate func(msg revent.ServerMsg) bool
 		ch        chan<- revent.ServerMsg
 	}
@@ -46,7 +46,7 @@ func NewState(cfg Config) (*ServerManager, error) {
 	return &ServerManager{
 		logger:        cfg.Logger,
 		clientID:      cfg.ClientID,
-		subscribers:   make(map[uuid.UUID]stateSubscription),
+		subscribers:   make(map[uuid.UUID]serverMessageSubscription),
 		queryHandlers: make(map[revent.QueryID]any),
 	}, nil
 }
@@ -59,7 +59,7 @@ func (s *ServerManager) Subscribe(
 	s.muSubscribers.Lock()
 	defer s.muSubscribers.Unlock()
 
-	s.subscribers[id] = stateSubscription{predicate: pred, ch: ch}
+	s.subscribers[id] = serverMessageSubscription{predicate: pred, ch: ch}
 
 	return nil
 }
@@ -121,7 +121,7 @@ func (s *ServerManager) dispatchServerMessage(msg revent.ServerMsg) {
 
 	s.muSubscribers.RLock()
 
-	subs := make([]stateSubscription, 0, len(s.subscribers))
+	subs := make([]serverMessageSubscription, 0, len(s.subscribers))
 	for _, sub := range s.subscribers {
 		subs = append(subs, sub)
 	}
