@@ -40,7 +40,6 @@ linters:
     - noinlineerr # I prefer inline errors.
     - paralleltest  # We can't test in parallel.
     - promlinter # Related to prometheus.
-    - protogetter # Related to protocol buffer.
     - rowserrcheck # Related to SQL.
     - spancheck # Related to OpenTelemetry.
     - sqlclosecheck # Related to SQL.

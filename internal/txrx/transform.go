@@ -3,6 +3,8 @@ package txrx
 import (
 	"fmt"
 
+	"github.com/google/uuid"
+
 	reventv1 "github.com/manuelarte/revent-sdk-go/internal/api/gRPC/revent/v1"
 	"github.com/manuelarte/revent-sdk-go/revent"
 )
@@ -16,7 +18,6 @@ func (e *UnknownMsgError) Error() string {
 }
 
 func transformClientMessageToGRPC(msg revent.ClientMsg) (*reventv1.ClientToServerMessage, error) {
-	//nolint:gocritic // more events coming
 	switch msg := msg.(type) {
 	case *revent.ClientRegistrationMsg:
 		return &reventv1.ClientToServerMessage{
@@ -24,6 +25,16 @@ func transformClientMessageToGRPC(msg revent.ClientMsg) (*reventv1.ClientToServe
 				RegisterClient: &reventv1.RegisterClient{
 					ClientId:      msg.ClientID.String(),
 					QueryHandlers: getQueryHandlerIDs(msg.QueryHandlers),
+				},
+			},
+		}, nil
+	case *revent.QueryRequestMsg:
+		return &reventv1.ClientToServerMessage{
+			Payload: &reventv1.ClientToServerMessage_QueryRequest{
+				QueryRequest: &reventv1.QueryRequest{
+					RequestId:  msg.RequestID.String(),
+					QueryId:    msg.QueryID.String(),
+					Parameters: nil,
 				},
 			},
 		}, nil
@@ -35,9 +46,11 @@ func transformClientMessageToGRPC(msg revent.ClientMsg) (*reventv1.ClientToServe
 }
 
 func transformServerMessageToGRPC(msg *reventv1.ServerToClientMessage) (revent.ServerMsg, error) {
-	switch casted := msg.Payload.(type) {
+	switch casted := msg.GetPayload().(type) {
 	case *reventv1.ServerToClientMessage_ClientRegistered:
 		return transformToClientRegistered(casted), nil
+	case *reventv1.ServerToClientMessage_QueryResponded:
+		return transformToQueryResponse(casted), nil
 	//nolint:nilnil // think about this later.
 	case *reventv1.ServerToClientMessage_Heartbeat:
 		return nil, nil
@@ -50,7 +63,16 @@ func transformServerMessageToGRPC(msg *reventv1.ServerToClientMessage) (revent.S
 
 func transformToClientRegistered(msg *reventv1.ServerToClientMessage_ClientRegistered) *revent.ClientRegisteredMsg {
 	return &revent.ClientRegisteredMsg{
-		ClientID: revent.ClientID(msg.ClientRegistered.ClientId),
+		ClientID: revent.ClientID(msg.ClientRegistered.GetClientId()),
+	}
+}
+
+func transformToQueryResponse(msg *reventv1.ServerToClientMessage_QueryResponded) *revent.QueryResponseMsg {
+	// TODO: this needs a lot of work
+	return &revent.QueryResponseMsg{
+		RequestID: revent.RequestID(uuid.MustParse(msg.QueryResponded.GetRequestId())),
+		QueryID:   "made up",
+		Response:  nil,
 	}
 }
 

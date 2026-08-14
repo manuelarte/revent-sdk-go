@@ -24,7 +24,7 @@ type (
 	// FlowManager manages the different flows of messages between the client and the server.
 	FlowManager interface {
 		RegisterClient(ctx context.Context) error
-		QueryRequest(requestID revent.RequestID, queryID revent.QueryID) error
+		QueryRequest(ctx context.Context, requestID revent.RequestID, queryID revent.QueryID) (revent.QueryResponse, error)
 	}
 
 	// ClientManager manages the client registration and query requests.

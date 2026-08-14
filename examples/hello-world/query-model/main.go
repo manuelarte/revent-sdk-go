@@ -5,8 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
+
+	"github.com/google/uuid"
+	"golang.org/x/sync/errgroup"
 
 	reventsdkgo "github.com/manuelarte/revent-sdk-go"
+	"github.com/manuelarte/revent-sdk-go/revent"
 )
 
 func main() {
@@ -38,14 +43,22 @@ func run(logger *slog.Logger) error {
 		return fmt.Errorf("failed to register R-Event query and event handlers: %w", errRegisteringHandlers)
 	}
 
-	if errSession := reventsdkgo.OpenSession(ctx, s, cfg.GRPCCfg); errSession != nil {
-		logger.ErrorContext(ctx, "Failed to open session", slog.Any("clientID", clientID), slog.Any("error", errSession))
-	}
-	// this is not executed, reventsdkgo.OpenSession blocks the thread
-	// add http server with endpoint to ask for users by id
-	//if _, errQueryRequest := reventsdkgo.QueryRequest(ctx, s, getAllUsers, getAllUsersParams{}); errQueryRequest != nil {
-	//	return fmt.Errorf("failed to send query request: %w", errQueryRequest)
-	//}
+	g, ctx := errgroup.WithContext(ctx)
 
-	return nil
+	g.Go(func() error {
+		if errSession := reventsdkgo.OpenSession(ctx, s, cfg.GRPCCfg); errSession != nil {
+			logger.ErrorContext(ctx, "Failed to open session", slog.Any("clientID", clientID), slog.Any("error", errSession))
+			return errSession
+		}
+		return nil
+	})
+
+	// add http server with endpoint to ask for users by id
+	time.Sleep(4 * time.Second) // wait for the session to be established
+	requestID := revent.RequestID(uuid.New())
+	if _, errQueryRequest := reventsdkgo.QueryRequest(ctx, s, requestID, getAllUsers, getAllUsersParams{}); errQueryRequest != nil {
+		return fmt.Errorf("failed to send query request: %w", errQueryRequest)
+	}
+
+	return g.Wait()
 }

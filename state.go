@@ -73,8 +73,13 @@ func (s *State) RegisterClient(ctx context.Context) error {
 	return nil
 }
 
-func (s *State) QueryRequest(requestID revent.RequestID, queryID revent.QueryID) error {
-	panic("not implemented")
+func (s *State) QueryRequest(
+	ctx context.Context,
+	requestID revent.RequestID,
+	queryID revent.QueryID,
+) (revent.QueryResponse, error) {
+	// TODO: rethink this because of losing type parameters since method not allowing generics yet
+	panic("not implemented yet")
 }
 
 func (s *State) Subscribe(

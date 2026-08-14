@@ -15,9 +15,10 @@ import (
 type (
 	// QueryRequisition is the flow to send a QueryRequest, wait, and forward the QueryResponse.
 	QueryRequisition[I revent.QueryRequestParameters, O revent.QueryResponse] struct {
-		logger  logger.ILogger
-		queryID revent.Query[I, O]
-		timeout time.Duration
+		logger    logger.ILogger
+		requestID revent.RequestID
+		queryID   revent.Query[I, O]
+		timeout   time.Duration
 	}
 
 	QueryRequestError struct {
@@ -28,12 +29,14 @@ type (
 
 func NewQueryRequisition[I revent.QueryRequestParameters, O revent.QueryResponse](
 	logger logger.ILogger,
+	requestID revent.RequestID,
 	query revent.Query[I, O],
 ) *QueryRequisition[I, O] {
 	return &QueryRequisition[I, O]{
-		logger:  logger,
-		queryID: query,
-		timeout: 2 * time.Second,
+		logger:    logger,
+		requestID: requestID,
+		queryID:   query,
+		timeout:   2 * time.Second,
 	}
 }
 
@@ -42,17 +45,16 @@ func (e QueryRequestError) Error() string {
 }
 
 func (c *QueryRequisition[I, O]) Do(ctx context.Context, m SendAndSubscribe) error {
-	subscriptionID := uuid.New()
 	queryRequestEvents := make(chan revent.ServerMsg, 1)
 
-	err := m.Subscribe(subscriptionID, func(msg revent.ServerMsg) bool {
+	err := m.Subscribe(uuid.UUID(c.requestID), func(msg revent.ServerMsg) bool {
 		if msg == nil {
 			return false
 		}
 
 		switch payload := msg.(type) {
 		case *revent.QueryResponseMsg:
-			return payload.RequestID.String() == subscriptionID.String()
+			return payload.RequestID.String() == c.requestID.String()
 		default:
 			return false
 		}
@@ -62,12 +64,12 @@ func (c *QueryRequisition[I, O]) Do(ctx context.Context, m SendAndSubscribe) err
 	}
 
 	defer func() {
-		_ = m.Unsubscribe(subscriptionID)
+		_ = m.Unsubscribe(uuid.UUID(c.requestID))
 	}()
 
 	err = m.Send(&revent.QueryRequestMsg{
-		RequestID:  revent.RequestID(subscriptionID),
-		QueryID:    "",
+		RequestID:  c.requestID,
+		QueryID:    revent.QueryID(c.queryID),
 		Parameters: nil,
 	})
 	if err != nil {

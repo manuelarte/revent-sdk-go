@@ -31,6 +31,10 @@ func (r RequestID) String() string {
 	return uuid.UUID(r).String()
 }
 
+func (q QueryID) String() string {
+	return string(q)
+}
+
 func (q QueryHandlerAlreadyRegisteredError) Error() string {
 	return fmt.Sprintf("query handler already registered for query ID %s", q.QueryID)
 }

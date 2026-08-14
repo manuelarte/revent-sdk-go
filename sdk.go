@@ -2,7 +2,9 @@ package revent_sdk_go
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/manuelarte/revent-sdk-go/internal/flows"
 	"github.com/manuelarte/revent-sdk-go/internal/txrx"
 	"github.com/manuelarte/revent-sdk-go/revent"
 )
@@ -57,16 +59,23 @@ func RegisterSourceEventHandler[E revent.Event, S revent.SourceEvent[E]](eh reve
 	return nil
 }
 
-/*
 func QueryRequest[I revent.QueryRequestParameters, O revent.QueryResponse](
 	ctx context.Context,
 	s *State,
+	requestID revent.RequestID,
 	query revent.Query[I, O],
 	params I,
 ) (O, error) {
-	queryRequestFlow := flow.NewQueryRequest(s.logger, query)
+	queryRequisition := flows.NewQueryRequisition(s.logger, requestID, query)
 
-	err := queryRequestFlow.Do(ctx, s)
+	type sendAndSubscribe struct {
+		*State
+		TxRx
+	}
+
+	x := sendAndSubscribe{s, s.txRx}
+
+	err := queryRequisition.Do(ctx, x)
 	if err != nil {
 		var zero O
 
@@ -77,4 +86,3 @@ func QueryRequest[I revent.QueryRequestParameters, O revent.QueryResponse](
 
 	return zero, nil
 }
-*/
