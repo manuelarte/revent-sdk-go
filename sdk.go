@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/manuelarte/revent-sdk-go/internal/flows"
+	"github.com/manuelarte/revent-sdk-go/internal/revent/actions"
 	"github.com/manuelarte/revent-sdk-go/internal/txrx"
 	"github.com/manuelarte/revent-sdk-go/revent"
 )
@@ -66,7 +66,7 @@ func QueryRequest[I revent.QueryRequestParameters, O revent.QueryResponse](
 	query revent.Query[I, O],
 	params I,
 ) (O, error) {
-	queryRequisition := flows.NewQueryRequisition(s.logger, requestID, query)
+	queryRequisition := actions.NewQueryRequisition(s.logger, requestID, query)
 
 	type sendAndSubscribe struct {
 		*ServerManager
@@ -96,7 +96,7 @@ func registerClient(s *ServerManager) func(ctx context.Context) error {
 
 		x := sendAndSubscribe{s, s.txRx}
 
-		errReg := flows.NewClientRegistration(
+		errReg := actions.NewClientRegistration(
 			s.logger,
 			s.clientID,
 			s.getQueryHandlerIDs(),

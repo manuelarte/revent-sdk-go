@@ -1,4 +1,4 @@
-package flows
+package actions
 
 import (
 	"context"
