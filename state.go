@@ -93,6 +93,7 @@ func (s *ServerManager) start(ctx context.Context, createTxRxFn func() (txrx.TxR
 
 				continue
 			}
+
 			s.dispatchServerMessage(msg)
 		case errTxRx, ok := <-txRxErrChan:
 			if !ok {
