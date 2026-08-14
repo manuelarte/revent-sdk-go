@@ -14,7 +14,7 @@ func OpenSession(ctx context.Context, s *ServerManager, cfg txrx.GrpcConfig) err
 	var err error
 
 	s.once.Do(func() {
-		createTxRxFn := func() (txrx.TxRx, <-chan error, error) {
+		createTxRxFn := func() (txrx.TxRx, <-chan txrx.SessionEvent, error) {
 			return txrx.NewGRPCTxRx(ctx, s.logger, cfg, registerClient(s))
 		}
 		err = s.start(ctx, createTxRxFn)

@@ -6,6 +6,12 @@ import (
 
 var _ TxRx = new(GRPC)
 
+const (
+	ConnectedState    ConnectionState = "Connected"
+	ConnectingState   ConnectionState = "Connecting"
+	DisconnectedState ConnectionState = "Disconnected"
+)
+
 type (
 	TxRx interface {
 		// Send sends a message to the server.
@@ -22,5 +28,12 @@ type (
 		// For the gRPC transport, queue size is configured via
 		// GrpcConfig.IncomingBufferSize (defaults to 64).
 		Incoming() <-chan revent.ServerMsg
+	}
+
+	ConnectionState string
+
+	SessionEvent struct {
+		State ConnectionState
+		Err   error
 	}
 )

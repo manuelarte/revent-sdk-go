@@ -22,11 +22,8 @@ import (
 )
 
 const (
-	defaultMaxNumberOfRetries                 = 2
-	defaultIncomingBufferSize                 = 64
-	connectedState            connectionState = "Connected"
-	connectingState           connectionState = "Connecting"
-	disconnectedState         connectionState = "Disconnected"
+	defaultMaxNumberOfRetries = 2
+	defaultIncomingBufferSize = 64
 )
 
 var (
@@ -59,10 +56,11 @@ type (
 	// GRPC implements the TxRx interface using gRPC.
 	//go:structinit
 	GRPC struct {
-		cfg       GrpcConfig
-		registrar clientRegistrar
-		logger    logger.ILogger
-		state     connectionState
+		cfg              GrpcConfig
+		registrar        clientRegistrar
+		logger           logger.ILogger
+		state            ConnectionState
+		sessionEventChan chan SessionEvent
 
 		// field to check that the client is connecting to R-Event.
 		connecting atomic.Bool
@@ -74,8 +72,6 @@ type (
 	}
 
 	clientRegistrar func(ctx context.Context) error
-
-	connectionState string
 )
 
 func DefaultGrpcConfig() GrpcConfig {
@@ -103,18 +99,19 @@ func NewGRPCTxRx(
 	logger logger.ILogger,
 	cfg GrpcConfig,
 	registrar clientRegistrar,
-) (*GRPC, <-chan error, error) {
+) (*GRPC, <-chan SessionEvent, error) {
 	bufferSize := cfg.IncomingBufferSize
 	if bufferSize == 0 {
 		bufferSize = defaultIncomingBufferSize
 	}
 
 	txRx := GRPC{
-		cfg:       cfg,
-		registrar: registrar,
-		logger:    logger,
-		state:     disconnectedState,
-		incoming:  make(chan revent.ServerMsg, bufferSize),
+		cfg:              cfg,
+		registrar:        registrar,
+		logger:           logger,
+		state:            DisconnectedState,
+		sessionEventChan: make(chan SessionEvent, 1),
+		incoming:         make(chan revent.ServerMsg, bufferSize),
 	}
 	// launch goroutines to manage the connection
 	// run goroutines for connection management and stream listening
@@ -132,7 +129,7 @@ func NewGRPCTxRx(
 
 				return ctx.Err()
 			case <-ticker.C:
-				if txRx.getState() != disconnectedState {
+				if txRx.getState() != DisconnectedState {
 					continue
 				}
 
@@ -162,8 +159,6 @@ func NewGRPCTxRx(
 		return nil
 	})
 
-	errChan := make(chan error, 1)
-
 	go func() {
 		defer close(txRx.incoming)
 
@@ -171,13 +166,16 @@ func NewGRPCTxRx(
 		if errWait != nil &&
 			!errors.Is(errWait, context.Canceled) &&
 			!errors.Is(errWait, context.DeadlineExceeded) {
-			errChan <- errWait
+			txRx.sessionEventChan <- SessionEvent{
+				State: DisconnectedState,
+				Err:   errWait,
+			}
 		}
 
-		close(errChan)
+		close(txRx.sessionEventChan)
 	}()
 
-	return &txRx, errChan, nil
+	return &txRx, txRx.sessionEventChan, nil
 }
 
 func (g *GRPC) Send(m revent.ClientMsg) error {
@@ -205,7 +203,7 @@ func (g *GRPC) connect(ctx context.Context) error {
 	}
 	defer g.connecting.CompareAndSwap(true, false)
 
-	g.setState(connectingState)
+	g.setState(ConnectingState)
 
 	// Close old connection if it exists
 	oldConn := g.getConn()
@@ -229,7 +227,7 @@ func (g *GRPC) connect(ctx context.Context) error {
 		// grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 	)
 	if errClient != nil {
-		g.setState(disconnectedState)
+		g.setState(DisconnectedState)
 
 		return fmt.Errorf("failed to instantiate GRPC client: %w", errClient)
 	}
@@ -259,7 +257,7 @@ func (g *GRPC) connect(ctx context.Context) error {
 				g.logger.Warn("Failed to close gRPC connection after session error", "error", errClose)
 			}
 
-			g.setState(disconnectedState)
+			g.setState(DisconnectedState)
 
 			return fmt.Errorf("failed to open session: %w", err)
 		}
@@ -267,7 +265,7 @@ func (g *GRPC) connect(ctx context.Context) error {
 		// Connection successful
 		g.setConn(gRPCClientConn)
 		g.setStream(gRPCStream)
-		g.setState(connectedState)
+		g.setState(ConnectedState)
 
 		return nil
 	}
@@ -277,7 +275,7 @@ func (g *GRPC) connect(ctx context.Context) error {
 		g.logger.Warn("Failed to close gRPC connection after max retries", "error", err)
 	}
 
-	g.setState(disconnectedState)
+	g.setState(DisconnectedState)
 
 	return CantConnectToServerError{
 		Addr:        g.cfg.GRPCAddress,
@@ -317,7 +315,7 @@ func (g *GRPC) listenToStream(ctx context.Context) {
 			)
 			// Mark as disconnected so reconnection is triggered
 			g.setStream(nil)
-			g.setState(disconnectedState)
+			g.setState(DisconnectedState)
 
 			continue
 		}
@@ -359,7 +357,7 @@ func (g *GRPC) setConn(conn *grpc.ClientConn) {
 	g.conn = conn
 }
 
-func (g *GRPC) setState(state connectionState) {
+func (g *GRPC) setState(state ConnectionState) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
@@ -369,9 +367,12 @@ func (g *GRPC) setState(state connectionState) {
 	}
 
 	g.state = state
+	g.sessionEventChan <- SessionEvent{
+		State: state,
+	}
 }
 
-func (g *GRPC) getState() connectionState {
+func (g *GRPC) getState() ConnectionState {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 
