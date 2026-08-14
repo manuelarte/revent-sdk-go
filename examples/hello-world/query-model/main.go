@@ -75,7 +75,7 @@ connectedLoop:
 
 	requestID := revent.RequestID(uuid.New())
 	if _, errQueryRequest := reventsdkgo.QueryRequest(ctx, s, requestID, getAllUsers, getAllUsersParams{}); errQueryRequest != nil {
-		return fmt.Errorf("failed to send query request: %w", errQueryRequest)
+		logger.ErrorContext(ctx, "failed to send query request", slog.Any("err", errQueryRequest))
 	}
 
 	return g.Wait()
