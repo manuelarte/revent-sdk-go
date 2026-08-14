@@ -112,7 +112,6 @@ func (s *ServerManager) start(
 			}
 
 			if sessionEvent.Err == nil {
-				// TODO: update state
 				s.stateChan <- sessionEvent.State
 				continue
 			}
