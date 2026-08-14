@@ -27,6 +27,7 @@ const (
 )
 
 var (
+	_               TxRx  = new(GRPC)
 	ErrGRPCAddress        = errors.New("GRPCAddress is required")
 	ErrStreamClosed       = errors.New("stream closed")
 	_               error = new(CantConnectToServerError)
@@ -99,7 +100,7 @@ func NewGRPCTxRx(
 	logger logger.ILogger,
 	cfg GrpcConfig,
 	registrar clientRegistrar,
-) (*GRPC, <-chan SessionEvent, error) {
+) (*GRPC, error) {
 	bufferSize := cfg.IncomingBufferSize
 	if bufferSize == 0 {
 		bufferSize = defaultIncomingBufferSize
@@ -175,7 +176,7 @@ func NewGRPCTxRx(
 		close(txRx.sessionEventChan)
 	}()
 
-	return &txRx, txRx.sessionEventChan, nil
+	return &txRx, nil
 }
 
 func (g *GRPC) Send(m revent.ClientMsg) error {
@@ -194,6 +195,10 @@ func (g *GRPC) Send(m revent.ClientMsg) error {
 
 func (g *GRPC) Incoming() <-chan revent.ServerMsg {
 	return g.incoming
+}
+
+func (g *GRPC) SessionEvent() <-chan SessionEvent {
+	return g.sessionEventChan
 }
 
 func (g *GRPC) connect(ctx context.Context) error {

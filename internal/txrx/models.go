@@ -4,8 +4,6 @@ import (
 	"github.com/manuelarte/revent-sdk-go/revent"
 )
 
-var _ TxRx = new(GRPC)
-
 const (
 	ConnectedState    ConnectionState = "Connected"
 	ConnectingState   ConnectionState = "Connecting"
@@ -28,6 +26,9 @@ type (
 		// For the gRPC transport, queue size is configured via
 		// GrpcConfig.IncomingBufferSize (defaults to 64).
 		Incoming() <-chan revent.ServerMsg
+
+		// SessionEvent emits session events. Like changing states or errors when connecting or disconnecting.
+		SessionEvent() <-chan SessionEvent
 	}
 
 	ConnectionState string

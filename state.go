@@ -74,14 +74,18 @@ func (s *ServerManager) Unsubscribe(id uuid.UUID) error {
 }
 
 // start creates the txRx connection and blocks until the connection is closed.
-func (s *ServerManager) start(ctx context.Context, createTxRxFn func() (txrx.TxRx, <-chan txrx.SessionEvent, error)) error {
-	txRx, txRxSessionChan, err := createTxRxFn()
+func (s *ServerManager) start(
+	ctx context.Context,
+	createTxRxFn func() (txrx.TxRx, error),
+) error {
+	txRx, err := createTxRxFn()
 	if err != nil {
 		return fmt.Errorf("failed to create gRPC TxRx: %w", err)
 	}
 
 	s.txRx = txRx
 	incoming := txRx.Incoming()
+	txRxSessionChan := txRx.SessionEvent()
 
 	for {
 		select {
@@ -101,7 +105,7 @@ func (s *ServerManager) start(ctx context.Context, createTxRxFn func() (txrx.TxR
 			}
 
 			if sessionEvent.Err == nil {
-				//TODO: update state
+				// TODO: update state
 				continue
 			}
 
