@@ -69,9 +69,11 @@ func (q QueryRequestResponseMsg[O]) GetRequestID() revent.RequestID {
 	if q.Msg != nil {
 		return q.Msg.RequestID
 	}
+
 	if q.Err != nil {
 		return q.Err.RequestID
 	}
+
 	return revent.RequestID(uuid.Nil)
 }
 

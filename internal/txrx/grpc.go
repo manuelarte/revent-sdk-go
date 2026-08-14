@@ -150,6 +150,7 @@ func NewGRPCTxRx(
 
 					return errReg
 				}
+
 				txRx.sessionEventChan <- SessionEvent{
 					State: ClientRegisteredState,
 				}

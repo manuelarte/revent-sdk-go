@@ -39,9 +39,11 @@ func (c ClientRegistrationResponseMsg) ClientID() revent.ClientID {
 	if c.Msg != nil {
 		return c.Msg.ClientID
 	}
+
 	if c.Err != nil {
 		return c.Err.ClientID
 	}
+
 	return ""
 }
 

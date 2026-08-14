@@ -81,6 +81,7 @@ func (c *ClientRegistration) Do(
 		if casted, ok := msg.(*messages.ClientRegistrationResponseMsg); ok {
 			return casted, nil
 		}
+
 		return nil, UnexpectedMsgError{
 			Flow: "ClientRegistration",
 			Msg:  msg,
