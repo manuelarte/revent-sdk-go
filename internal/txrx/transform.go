@@ -48,30 +48,26 @@ func transformClientMessageToGRPC(msg revent.ClientMsg) (*reventv1.ClientToServe
 func transformServerMessageToGRPC(msg *reventv1.ServerToClientMessage) (revent.ServerMsg, error) {
 	switch casted := msg.GetPayload().(type) {
 	case *reventv1.ServerToClientMessage_ClientRegistered:
-		return transformToClientRegistered(casted), nil
+		return &revent.ClientRegisteredMsg{
+			ClientID: revent.ClientID(casted.ClientRegistered.GetClientId()),
+		}, nil
 	case *reventv1.ServerToClientMessage_QueryResponded:
-		return transformToQueryResponse(casted), nil
+		return &revent.QueryResponseRawMsg{
+			RequestID: revent.RequestID(uuid.MustParse(casted.QueryResponded.GetRequestId())),
+			Response:  casted.QueryResponded.GetResult(),
+		}, nil
+	case *reventv1.ServerToClientMessage_QueryRequestedError:
+		return &revent.QueryResponseErrorRawMsg{
+			RequestID: revent.RequestID(uuid.MustParse(casted.QueryRequestedError.GetRequestId())),
+			Reason:    casted.QueryRequestedError.GetReason(),
+		}, nil
 	//nolint:nilnil // think about this later.
 	case *reventv1.ServerToClientMessage_Heartbeat:
 		return nil, nil
 	}
 
 	return nil, &UnknownMsgError{
-		Msg: msg,
-	}
-}
-
-func transformToClientRegistered(msg *reventv1.ServerToClientMessage_ClientRegistered) *revent.ClientRegisteredMsg {
-	return &revent.ClientRegisteredMsg{
-		ClientID: revent.ClientID(msg.ClientRegistered.GetClientId()),
-	}
-}
-
-func transformToQueryResponse(msg *reventv1.ServerToClientMessage_QueryResponded) *revent.QueryResponseRawMsg {
-	// TODO: this needs a lot of work
-	return &revent.QueryResponseRawMsg{
-		RequestID: revent.RequestID(uuid.MustParse(msg.QueryResponded.GetRequestId())),
-		Response:  msg.QueryResponded.GetResult(),
+		Msg: msg.GetPayload(),
 	}
 }
 

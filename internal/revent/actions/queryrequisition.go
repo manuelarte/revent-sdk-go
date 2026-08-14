@@ -43,6 +43,7 @@ func (e QueryRequestError) Error() string {
 	return fmt.Sprintf("query request %q rejected: %q", e.RequestID, e.Reason)
 }
 
+// TODO: think about this API
 func (c *QueryRequisition[I, O]) Do(ctx context.Context, params QueryRequisitionParams[I, O]) error {
 	queryRequestEvents := make(chan revent.ServerMsg, 1)
 
@@ -51,12 +52,10 @@ func (c *QueryRequisition[I, O]) Do(ctx context.Context, params QueryRequisition
 			return false
 		}
 
-		switch payload := msg.(type) {
-		case *revent.QueryResponseRawMsg:
-			return payload.RequestID.String() == params.RequestID.String()
-		default:
-			return false
+		if identificable, ok := msg.(revent.IdempotentMsg); ok {
+			return identificable.GetRequestID().String() == params.RequestID.String()
 		}
+		return false
 	}, queryRequestEvents)
 	if err != nil {
 		return fmt.Errorf("error creating query responsed listener: %w", err)
@@ -84,8 +83,12 @@ func (c *QueryRequisition[I, O]) Do(ctx context.Context, params QueryRequisition
 			c.logger.Info("Query responded successfully", "requestID", payload.RequestID)
 			// TODO: rethink flow api
 			return nil
-		case *revent.QueryResponseErrorMsg:
-			return payload
+		case *revent.QueryResponseErrorRawMsg:
+			return &revent.QueryResponseErrorMsg{
+				RequestID: payload.RequestID,
+				QueryID:   revent.QueryID(params.QueryID),
+				Reason:    payload.Reason,
+			}
 		default:
 			return UnexpectedMsgError{
 				Flow: "QueryRequisition",

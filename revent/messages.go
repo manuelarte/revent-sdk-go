@@ -10,12 +10,20 @@ var (
 )
 
 var (
-	_ error = new(ClientRegistrationErrorMsg)
-	_ error = new(QueryResponseErrorMsg)
+	_ error         = new(ClientRegistrationErrorMsg)
+	_ error         = new(QueryResponseErrorMsg)
+	_ IdempotentMsg = new(QueryRequestMsg)
+	_ IdempotentMsg = new(QueryResponseRawMsg)
+	_ IdempotentMsg = new(QueryResponseErrorRawMsg)
+	_ IdempotentMsg = new(QueryResponseErrorMsg)
 )
 
 type (
 	Msg any
+
+	IdempotentMsg interface {
+		GetRequestID() RequestID
+	}
 
 	ClientMsg interface {
 		Msg
@@ -53,6 +61,11 @@ type (
 		Response  []byte
 	}
 
+	QueryResponseErrorRawMsg struct {
+		RequestID RequestID
+		Reason    string
+	}
+
 	//nolint:errname // keep consistency with Msg at the end
 	QueryResponseErrorMsg struct {
 		RequestID RequestID
@@ -77,9 +90,26 @@ func (e QueryResponseErrorMsg) Error() string {
 	return fmt.Sprintf("query %q response error: %s", e.QueryID, e.Reason)
 }
 
+func (q QueryRequestMsg) GetRequestID() RequestID {
+	return q.RequestID
+}
+
+func (q QueryResponseRawMsg) GetRequestID() RequestID {
+	return q.RequestID
+}
+
+func (q QueryResponseErrorRawMsg) GetRequestID() RequestID {
+	return q.RequestID
+}
+
+func (q QueryResponseErrorMsg) GetRequestID() RequestID {
+	return q.RequestID
+}
+
 func (c ClientRegistrationMsg) clientMessage()      {}
 func (q QueryRequestMsg) clientMessage()            {}
 func (c ClientRegisteredMsg) serverMessage()        {}
 func (e ClientRegistrationErrorMsg) serverMessage() {}
 func (e QueryResponseRawMsg) serverMessage()        {}
+func (e QueryResponseErrorRawMsg) serverMessage()   {}
 func (e QueryResponseErrorMsg) serverMessage()      {}
