@@ -25,7 +25,7 @@ type (
 
 	QueryRequisitionResponse[O revent.QueryResponse] struct {
 		Response O
-		Err      *revent.QueryResponseErrorMsg
+		Err      *revent.QueryRequestedErrorMsg
 	}
 )
 
@@ -43,7 +43,7 @@ func NewQueryRequisition[I revent.QueryRequestParameters, O revent.QueryResponse
 // Output:
 // It returns the output of the query response, that it could be:
 // - revent.QueryResponse
-// - revent.QueryResponseErrorMsg
+// - revent.QueryRequestedErrorMsg
 // Errors:
 // - error coming from trying to send the QueryRequest.
 // - context error: if the context is canceled.
@@ -91,16 +91,16 @@ func (c *QueryRequisition[I, O]) Do(
 
 			return &QueryRequisitionResponse[O]{
 				Response: zero,
-				Err: &revent.QueryResponseErrorMsg{
+				Err: &revent.QueryRequestedErrorMsg{
 					RequestID: payload.RequestID,
 					QueryID:   revent.QueryID(params.QueryID),
 					Reason:    "Unmarshal error",
 					Details:   errUnmarshal.Error(),
 				},
 			}, nil
-		case *revent.QueryResponseErrorRawMsg:
+		case *revent.QueryRequestedErrorRawMsg:
 			return &QueryRequisitionResponse[O]{
-				Err: &revent.QueryResponseErrorMsg{
+				Err: &revent.QueryRequestedErrorMsg{
 					RequestID: payload.RequestID,
 					QueryID:   revent.QueryID(params.QueryID),
 					Reason:    payload.Reason,

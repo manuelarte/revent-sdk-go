@@ -11,11 +11,11 @@ var (
 
 var (
 	_ error         = new(ClientRegistrationErrorMsg)
-	_ error         = new(QueryResponseErrorMsg)
+	_ error         = new(QueryRequestedErrorMsg)
 	_ IdempotentMsg = new(QueryRequestMsg)
 	_ IdempotentMsg = new(QueryResponseRawMsg)
-	_ IdempotentMsg = new(QueryResponseErrorRawMsg)
-	_ IdempotentMsg = new(QueryResponseErrorMsg)
+	_ IdempotentMsg = new(QueryRequestedErrorRawMsg)
+	_ IdempotentMsg = new(QueryRequestedErrorMsg)
 )
 
 type (
@@ -61,13 +61,13 @@ type (
 		Response  []byte
 	}
 
-	QueryResponseErrorRawMsg struct {
+	QueryRequestedErrorRawMsg struct {
 		RequestID RequestID
 		Reason    string
 	}
 
 	//nolint:errname // keep consistency with Msg at the end
-	QueryResponseErrorMsg struct {
+	QueryRequestedErrorMsg struct {
 		RequestID RequestID
 		QueryID   QueryID
 		Reason    string
@@ -83,7 +83,7 @@ func (e ClientRegistrationErrorMsg) Error() string {
 	return fmt.Sprintf("client %q registration rejected: %s", e.ClientID, e.Reason)
 }
 
-func (e QueryResponseErrorMsg) Error() string {
+func (e QueryRequestedErrorMsg) Error() string {
 	if e.Reason == "" {
 		return fmt.Sprintf("query %q response error", e.QueryID)
 	}
@@ -99,11 +99,11 @@ func (q QueryResponseRawMsg) GetRequestID() RequestID {
 	return q.RequestID
 }
 
-func (q QueryResponseErrorRawMsg) GetRequestID() RequestID {
+func (q QueryRequestedErrorRawMsg) GetRequestID() RequestID {
 	return q.RequestID
 }
 
-func (q QueryResponseErrorMsg) GetRequestID() RequestID {
+func (q QueryRequestedErrorMsg) GetRequestID() RequestID {
 	return q.RequestID
 }
 
@@ -112,5 +112,5 @@ func (q QueryRequestMsg) clientMessage()            {}
 func (c ClientRegisteredMsg) serverMessage()        {}
 func (e ClientRegistrationErrorMsg) serverMessage() {}
 func (e QueryResponseRawMsg) serverMessage()        {}
-func (e QueryResponseErrorRawMsg) serverMessage()   {}
-func (e QueryResponseErrorMsg) serverMessage()      {}
+func (e QueryRequestedErrorRawMsg) serverMessage()  {}
+func (e QueryRequestedErrorMsg) serverMessage()     {}

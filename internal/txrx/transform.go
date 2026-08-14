@@ -57,7 +57,7 @@ func transformServerMessageToGRPC(msg *reventv1.ServerToClientMessage) (revent.S
 			Response:  casted.QueryResponded.GetResult(),
 		}, nil
 	case *reventv1.ServerToClientMessage_QueryRequestedError:
-		return &revent.QueryResponseErrorRawMsg{
+		return &revent.QueryRequestedErrorRawMsg{
 			RequestID: revent.RequestID(uuid.MustParse(casted.QueryRequestedError.GetRequestId())),
 			Reason:    casted.QueryRequestedError.GetReason(),
 		}, nil

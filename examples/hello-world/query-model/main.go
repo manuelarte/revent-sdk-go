@@ -71,7 +71,7 @@ clientRegisteredLoop:
 
 	requestID := revent.RequestID(uuid.New())
 	if _, errQueryRequest := reventsdkgo.QueryRequest(ctx, s, requestID, getAllUsers, getAllUsersParams{}); errQueryRequest != nil {
-		logger.ErrorContext(ctx, "failed to send query request", slog.Any("err", errQueryRequest))
+		logger.ErrorContext(ctx, "failed to process query request", slog.Any("err", errQueryRequest))
 	}
 
 	return g.Wait()
