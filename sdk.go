@@ -81,14 +81,19 @@ func QueryRequest[I revent.QueryRequestParameters, O revent.QueryResponse](
 		QueryID:   query,
 		Params:    params,
 	})
-	// TODO: check error
 	if err != nil {
 		var zero O
 
 		return zero, fmt.Errorf("error sending query request: %w", err)
 	}
 
-	return output.Response, output.Err
+	if output.Err != nil {
+		var zero O
+
+		return zero, output.Err
+	}
+
+	return output.Msg.Response, nil
 }
 
 func registerClient(s *ServerManager) func(ctx context.Context) error {

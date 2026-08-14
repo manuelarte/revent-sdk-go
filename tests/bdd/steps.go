@@ -11,7 +11,7 @@ import (
 
 	reventsdkgo "github.com/manuelarte/revent-sdk-go"
 	"github.com/manuelarte/revent-sdk-go/internal/txrx"
-	"github.com/manuelarte/revent-sdk-go/revent"
+	"github.com/manuelarte/revent-sdk-go/revent/messages"
 )
 
 const (
@@ -24,7 +24,7 @@ type scenarioState struct {
 	state      *reventsdkgo.ServerManager
 	// we subscribe to every single message to do the checks later on.
 	subID             uuid.UUID
-	registrationCh    chan revent.ServerMsg
+	registrationCh    chan messages.ServerMsg
 	openSessionErrCh  chan error
 	openSessionCancel context.CancelFunc
 }
@@ -57,7 +57,7 @@ func (s *scenarioState) iOpenTheSDKSession(ctx context.Context) (context.Context
 	}
 
 	s.state = state
-	state.Subscribe(s.subID, func(msg revent.ServerMsg) bool {
+	state.Subscribe(s.subID, func(msg messages.ServerMsg) bool {
 		return true
 	}, s.registrationCh)
 
@@ -118,13 +118,13 @@ func (s *scenarioState) iCancelTheSDKSessionContext(ctx context.Context) (contex
 func (s *scenarioState) theClientShouldBeRegisteredByTheServer(ctx context.Context) (context.Context, error) {
 	select {
 	case msg := <-s.registrationCh:
-		registered, ok := msg.(*revent.ClientRegisteredMsg)
+		registered, ok := msg.(*messages.ClientRegistrationResponseMsg)
 		if !ok {
 			return ctx, fmt.Errorf("expected ClientRegisteredMessage, got %T", msg)
 		}
 
-		if registered.ClientID.String() != s.cfg.ClientID.String() {
-			return ctx, fmt.Errorf("unexpected client id: got %q want %q", registered.ClientID.String(), s.cfg.ClientID.String())
+		if registered.ClientID().String() != s.cfg.ClientID.String() {
+			return ctx, fmt.Errorf("unexpected client id: got %q want %q", registered.ClientID().String(), s.cfg.ClientID.String())
 		}
 
 		return ctx, nil

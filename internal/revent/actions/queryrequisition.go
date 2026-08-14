@@ -52,7 +52,7 @@ func NewQueryRequisition[I revent.QueryRequestParameters, O revent.QueryResponse
 func (c *QueryRequisition[I, O]) Do(
 	ctx context.Context,
 	params QueryRequisitionParams[I, O],
-) (*QueryRequisitionResponse[O], error) {
+) (*messages.QueryRequestResponseMsg[O], error) {
 	queryRequestEvents := make(chan messages.ServerMsg, 1)
 
 	c.m.Subscribe(uuid.UUID(params.RequestID), func(msg messages.ServerMsg) bool {
@@ -74,7 +74,7 @@ func (c *QueryRequisition[I, O]) Do(
 	err := c.m.Send(&messages.QueryRequestMsg{
 		RequestID:  params.RequestID,
 		QueryID:    revent.QueryID(params.QueryID),
-		Parameters: nil,
+		Parameters: params.Params,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error sending query request: %w", err)
@@ -89,18 +89,25 @@ func (c *QueryRequisition[I, O]) Do(
 			var zero O
 
 			errUnmarshal := zero.UnmarshalJSON(payload.Response)
+			if errUnmarshal != nil {
+				return &messages.QueryRequestResponseMsg[O]{
+					Err: &messages.QueryRequestedErrorMsg{
+						RequestID: payload.RequestID,
+						QueryID:   revent.QueryID(params.QueryID),
+						Reason:    messages.QueryRequestedErrorReasonUnmarshalError,
+						Details:   errUnmarshal.Error(),
+					},
+				}, nil
+			}
 
-			return &QueryRequisitionResponse[O]{
-				Response: zero,
-				Err: &messages.QueryRequestedErrorMsg{
+			return &messages.QueryRequestResponseMsg[O]{
+				Msg: &messages.QueryResponseMsg[O]{
 					RequestID: payload.RequestID,
-					QueryID:   revent.QueryID(params.QueryID),
-					Reason:    messages.QueryRequestedErrorReasonUnmarshalError,
-					Details:   errUnmarshal.Error(),
+					Response:  zero,
 				},
 			}, nil
 		case *messages.QueryRequestedErrorRawMsg:
-			return &QueryRequisitionResponse[O]{
+			return &messages.QueryRequestResponseMsg[O]{
 				Err: &messages.QueryRequestedErrorMsg{
 					RequestID: payload.RequestID,
 					QueryID:   revent.QueryID(params.QueryID),

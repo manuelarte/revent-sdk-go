@@ -11,6 +11,7 @@ import (
 
 	reventsdkgo "github.com/manuelarte/revent-sdk-go"
 	"github.com/manuelarte/revent-sdk-go/revent"
+	"github.com/manuelarte/revent-sdk-go/revent/messages"
 )
 
 func TestFeatures(t *testing.T) {
@@ -56,7 +57,7 @@ func initializeScenario(ctx *godog.ScenarioContext) {
 		s.state = nil
 		s.openSessionCancel = nil
 		s.subID = uuid.New()
-		s.registrationCh = make(chan revent.ServerMsg, 1)
+		s.registrationCh = make(chan messages.ServerMsg, 1)
 		s.openSessionErrCh = make(chan error, 1)
 
 		return ctx, nil

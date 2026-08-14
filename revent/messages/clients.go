@@ -11,9 +11,7 @@ var (
 	_ ServerMsg = new(ClientRegistrationResponseMsg)
 )
 
-var (
-	_ error = new(ClientRegistrationErrorMsg)
-)
+var _ error = new(ClientRegistrationErrorMsg)
 
 type (
 	ClientRegistrationMsg struct {

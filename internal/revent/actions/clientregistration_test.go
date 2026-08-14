@@ -10,16 +10,17 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/manuelarte/revent-sdk-go/revent"
+	"github.com/manuelarte/revent-sdk-go/revent/messages"
 )
 
 type fakeRegistrationManager struct {
 	unsubscribeErr error
-	predicate      func(msg revent.ServerMsg) bool
-	ch             chan<- revent.ServerMsg
-	response       revent.ServerMsg
+	predicate      func(msg messages.ServerMsg) bool
+	ch             chan<- messages.ServerMsg
+	response       messages.ServerMsg
 }
 
-func (f *fakeRegistrationManager) Send(msg revent.ClientMsg) error {
+func (f *fakeRegistrationManager) Send(msg messages.ClientMsg) error {
 	// When a client registration message is sent, respond immediately if a response is configured
 	if f.response != nil && (f.predicate == nil || f.predicate(f.response)) {
 		select {
@@ -33,8 +34,8 @@ func (f *fakeRegistrationManager) Send(msg revent.ClientMsg) error {
 
 func (f *fakeRegistrationManager) Subscribe(
 	_ uuid.UUID,
-	pred func(msg revent.ServerMsg) bool,
-	ch chan<- revent.ServerMsg,
+	pred func(msg messages.ServerMsg) bool,
+	ch chan<- messages.ServerMsg,
 ) {
 	f.predicate = pred
 	f.ch = ch
@@ -46,8 +47,10 @@ func (f *fakeRegistrationManager) Unsubscribe(uuid.UUID) error {
 
 func TestClientRegistrationDoSuccess(t *testing.T) {
 	m := &fakeRegistrationManager{
-		response: &revent.ClientRegisteredMsg{
-			ClientID: "my-client",
+		response: &messages.ClientRegistrationResponseMsg{
+			Msg: &messages.ClientRegisteredMsg{
+				ClientID: "my-client",
+			},
 		},
 	}
 	registration := NewClientRegistration(slog.Default(), m)
@@ -67,9 +70,11 @@ func TestClientRegistrationDoSuccess(t *testing.T) {
 
 func TestClientRegistrationDoServerError(t *testing.T) {
 	m := &fakeRegistrationManager{
-		response: &revent.ClientRegistrationErrorMsg{
-			ClientID: "my-client",
-			Reason:   "duplicate client id",
+		response: &messages.ClientRegistrationResponseMsg{
+			Err: &messages.ClientRegistrationErrorMsg{
+				ClientID: "my-client",
+				Reason:   "duplicate client id",
+			},
 		},
 	}
 	registration := NewClientRegistration(slog.Default(), m)
@@ -107,8 +112,10 @@ func TestClientRegistrationDoTimeout(t *testing.T) {
 
 func TestClientRegistrationDoTimeoutWhenMessageDoesNotMatchPredicate(t *testing.T) {
 	m := &fakeRegistrationManager{
-		response: &revent.ClientRegisteredMsg{
-			ClientID: "other-client",
+		response: &messages.ClientRegistrationResponseMsg{
+			Msg: &messages.ClientRegisteredMsg{
+				ClientID: "other-client",
+			},
 		},
 	}
 	registration := NewClientRegistration(slog.Default(), m)
