@@ -67,12 +67,11 @@ func transformToClientRegistered(msg *reventv1.ServerToClientMessage_ClientRegis
 	}
 }
 
-func transformToQueryResponse(msg *reventv1.ServerToClientMessage_QueryResponded) *revent.QueryResponseMsg {
+func transformToQueryResponse(msg *reventv1.ServerToClientMessage_QueryResponded) *revent.QueryResponseRawMsg {
 	// TODO: this needs a lot of work
-	return &revent.QueryResponseMsg{
+	return &revent.QueryResponseRawMsg{
 		RequestID: revent.RequestID(uuid.MustParse(msg.QueryResponded.GetRequestId())),
-		QueryID:   "made up",
-		Response:  nil,
+		Response:  msg.QueryResponded.GetResult(),
 	}
 }
 

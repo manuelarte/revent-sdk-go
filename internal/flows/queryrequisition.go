@@ -53,7 +53,7 @@ func (c *QueryRequisition[I, O]) Do(ctx context.Context, m SendAndSubscribe) err
 		}
 
 		switch payload := msg.(type) {
-		case *revent.QueryResponseMsg:
+		case *revent.QueryResponseRawMsg:
 			return payload.RequestID.String() == c.requestID.String()
 		default:
 			return false
@@ -88,7 +88,7 @@ func (c *QueryRequisition[I, O]) Do(ctx context.Context, m SendAndSubscribe) err
 		return fmt.Errorf("error waiting for query response: %w", waitCtx.Err())
 	case msg := <-queryRequestEvents:
 		switch payload := msg.(type) {
-		case *revent.QueryResponseMsg:
+		case *revent.QueryResponseRawMsg:
 			c.logger.Info("Query responded successfully", "requestID", payload.RequestID)
 			// TODO: rethink flow api
 			return nil

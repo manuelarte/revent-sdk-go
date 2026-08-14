@@ -48,10 +48,9 @@ type (
 		Reason   string
 	}
 
-	QueryResponseMsg struct {
+	QueryResponseRawMsg struct {
 		RequestID RequestID
-		QueryID   QueryID
-		Response  QueryResponse
+		Response  []byte
 	}
 
 	//nolint:errname // keep consistency with Msg at the end
@@ -82,5 +81,5 @@ func (c ClientRegistrationMsg) clientMessage()      {}
 func (q QueryRequestMsg) clientMessage()            {}
 func (c ClientRegisteredMsg) serverMessage()        {}
 func (e ClientRegistrationErrorMsg) serverMessage() {}
-func (e QueryResponseMsg) serverMessage()           {}
+func (e QueryResponseRawMsg) serverMessage()        {}
 func (e QueryResponseErrorMsg) serverMessage()      {}
