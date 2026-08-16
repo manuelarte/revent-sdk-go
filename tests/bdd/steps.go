@@ -5,8 +5,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
+	"github.com/cucumber/godog"
 	"github.com/google/uuid"
 
 	reventsdkgo "github.com/manuelarte/revent-sdk-go"
@@ -29,7 +31,7 @@ type (
 		registrationCh    chan messages.ServerMsg
 		openSessionErrCh  chan error
 		openSessionCancel context.CancelFunc
-		queryErr          error
+		queryErrByReqID   map[revent.RequestID]error
 	}
 )
 
@@ -137,33 +139,77 @@ func (s *scenarioState) theClientShouldBeRegisteredByTheServer(ctx context.Conte
 	}
 }
 
-func (s *scenarioState) iSendAQueryRequestWithoutRegisteringAHandler(ctx context.Context) (context.Context, error) {
+func (s *scenarioState) iSendAQueryRequest(ctx context.Context, table *godog.Table) (context.Context, error) {
 	if s.state == nil {
 		return ctx, errors.New("state is nil")
 	}
 
-	requestID := revent.RequestID(uuid.New())
-	_, err := reventsdkgo.QueryRequest(ctx, s.state, requestID, testQuery, &bddQueryInput{Value: "any"})
-	s.queryErr = err
+	if table == nil {
+		return ctx, errors.New("query request table is nil")
+	}
+
+	var requestIDRaw, queryIDRaw string
+
+	for _, row := range table.Rows {
+		if len(row.Cells) < 2 {
+			continue
+		}
+
+		switch strings.TrimSpace(row.Cells[0].Value) {
+		case "RequestId":
+			requestIDRaw = strings.TrimSpace(row.Cells[1].Value)
+		case "Query":
+			queryIDRaw = strings.TrimSpace(row.Cells[1].Value)
+		}
+	}
+
+	if requestIDRaw == "" {
+		return ctx, errors.New("field RequestId is required")
+	}
+
+	if queryIDRaw == "" {
+		return ctx, errors.New("field Query is required")
+	}
+
+	requestUUID, err := uuid.Parse(requestIDRaw)
+	if err != nil {
+		return ctx, fmt.Errorf("invalid RequestId %q: %w", requestIDRaw, err)
+	}
+
+	requestID := revent.RequestID(requestUUID)
+	queryID := revent.Query[*bddQueryInput, *bddQueryOutput](queryIDRaw)
+	_, err = reventsdkgo.QueryRequest(ctx, s.state, requestID, queryID, &bddQueryInput{Value: "any"})
+	s.queryErrByReqID[requestID] = err
 
 	return ctx, nil
 }
 
-func (s *scenarioState) theQueryShouldFailWithQueryHandlerNotFound(ctx context.Context) (context.Context, error) {
-	if s.queryErr == nil {
+func (s *scenarioState) theQueryShouldFailWithQueryHandlerNotFound(ctx context.Context, requestIDRaw string) (context.Context, error) {
+	requestUUID, err := uuid.Parse(requestIDRaw)
+	if err != nil {
+		return ctx, fmt.Errorf("invalid RequestId %q: %w", requestIDRaw, err)
+	}
+
+	requestID := revent.RequestID(requestUUID)
+	queryErr, ok := s.queryErrByReqID[requestID]
+	if !ok {
+		return ctx, fmt.Errorf("query result for request %q was not captured", requestIDRaw)
+	}
+
+	if queryErr == nil {
 		return ctx, errors.New("expected query to fail, got nil")
 	}
 
-	var queryErr *messages.QueryRequestedErrorMsg
-	if !errors.As(s.queryErr, &queryErr) {
-		return ctx, fmt.Errorf("expected QueryRequestedErrorMsg, got: %w", s.queryErr)
+	var requestedErr *messages.QueryRequestedErrorMsg
+	if !errors.As(queryErr, &requestedErr) {
+		return ctx, fmt.Errorf("expected QueryRequestedErrorMsg, got: %w", queryErr)
 	}
 
-	if queryErr.Reason != messages.QueryRequestedErrorReasonQueryHandlerNotFound {
+	if requestedErr.Reason != messages.QueryRequestedErrorReasonQueryHandlerNotFound {
 		return ctx, fmt.Errorf(
 			"expected query error reason %q, got %q",
 			messages.QueryRequestedErrorReasonQueryHandlerNotFound,
-			queryErr.Reason,
+			requestedErr.Reason,
 		)
 	}
 
