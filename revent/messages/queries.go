@@ -28,22 +28,31 @@ var (
 )
 
 type (
+	// QueryRequestResponseMsg is the response to a QueryRequest.
+	// It can be either a QueryResponseMsg or a QueryRequestedErrorMsg.
+	// Where the Msg is the response to the QueryRequest, and the message
+	// containing the error why the query could not be processed.
+	QueryRequestResponseMsg[O revent.QueryResponse] struct {
+		Msg *QueryResponseMsg[O]
+		Err *QueryRequestedErrorMsg
+	}
+
+	// QueryRequestMsg is the request to a Query.
+	// It contains the request ID, the query ID, and the parameters.
 	QueryRequestMsg struct {
 		RequestID  revent.RequestID
 		QueryID    revent.QueryID
 		Parameters revent.QueryRequestParameters
 	}
 
-	QueryRequestResponseMsg[O revent.QueryResponse] struct {
-		Msg *QueryResponseMsg[O]
-		Err *QueryRequestedErrorMsg
-	}
-
+	// QueryResponseRawMsg is the raw response to a QueryRequest, lacking extra information.
+	// Struct not to be used directly.
 	QueryResponseRawMsg struct {
 		RequestID revent.RequestID
 		Response  []byte
 	}
 
+	// QueryResponseMsg is the response to a QueryRequest, built based on QueryResponseRawMsg.
 	QueryResponseMsg[O revent.QueryResponse] struct {
 		RequestID revent.RequestID
 		Response  O
@@ -56,6 +65,8 @@ type (
 		Reason    QueryRequestErrorReason
 	}
 
+	// QueryRequestedErrorMsg is the error response to a QueryRequest,
+	// built based on QueryRequestErrorRawMsg.
 	//nolint:errname // keep consistency with Msg at the end
 	QueryRequestedErrorMsg struct {
 		RequestID revent.RequestID
