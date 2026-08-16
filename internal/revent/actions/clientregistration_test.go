@@ -63,6 +63,10 @@ func TestClientRegistrationDoSuccess(t *testing.T) {
 		t.Fatalf("Do() error = %v, want nil", err)
 	}
 
+	if output == nil {
+		t.Fatal("Do() output = nil, want successful response")
+	}
+
 	if output.Err != nil {
 		t.Fatalf("Do() output.Err = %v, want nil", output.Err)
 	}
@@ -79,12 +83,24 @@ func TestClientRegistrationDoServerError(t *testing.T) {
 	}
 	registration := NewClientRegistration(slog.Default(), m)
 
-	_, err := registration.Do(t.Context(), ClientRegistrationParams{
+	output, err := registration.Do(t.Context(), ClientRegistrationParams{
 		ClientID:      "my-client",
 		QueryHandlers: []revent.QueryID{},
 	})
-	if err == nil {
-		t.Fatal("Do() error = nil, want server error")
+	if err != nil {
+		t.Fatalf("Do() error = %v, want nil", err)
+	}
+
+	if output == nil {
+		t.Fatal("Do() output = nil, want response with server error")
+	}
+
+	if output.Err == nil {
+		t.Fatal("Do() output.Err = nil, want server error")
+	}
+
+	if output.Err.Reason != "duplicate client id" {
+		t.Fatalf("Do() output.Err.Reason = %q, want %q", output.Err.Reason, "duplicate client id")
 	}
 }
 
