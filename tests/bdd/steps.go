@@ -11,6 +11,7 @@ import (
 
 	reventsdkgo "github.com/manuelarte/revent-sdk-go"
 	"github.com/manuelarte/revent-sdk-go/internal/txrx"
+	"github.com/manuelarte/revent-sdk-go/revent"
 	"github.com/manuelarte/revent-sdk-go/revent/messages"
 )
 
@@ -18,16 +19,19 @@ const (
 	reventImage = "ghcr.io/manuelarte/revent:v0.0.1"
 )
 
-type scenarioState struct {
-	serverInfo *serverInfo
-	cfg        reventsdkgo.Config
-	state      *reventsdkgo.ServerManager
-	// we subscribe to every single message to do the checks later on.
-	subID             uuid.UUID
-	registrationCh    chan messages.ServerMsg
-	openSessionErrCh  chan error
-	openSessionCancel context.CancelFunc
-}
+type (
+	scenarioState struct {
+		serverInfo *serverInfo
+		cfg        reventsdkgo.Config
+		state      *reventsdkgo.ServerManager
+		// we subscribe to every single message to do the checks later on.
+		subID             uuid.UUID
+		registrationCh    chan messages.ServerMsg
+		openSessionErrCh  chan error
+		openSessionCancel context.CancelFunc
+		queryErr          error
+	}
+)
 
 func (s *scenarioState) theServerIsRunning(ctx context.Context) (context.Context, error) {
 	si, err := startServer(ctx)
@@ -131,4 +135,37 @@ func (s *scenarioState) theClientShouldBeRegisteredByTheServer(ctx context.Conte
 	case <-time.After(8 * time.Second):
 		return ctx, errors.New("timeout waiting for registration confirmation")
 	}
+}
+
+func (s *scenarioState) iSendAQueryRequestWithoutRegisteringAHandler(ctx context.Context) (context.Context, error) {
+	if s.state == nil {
+		return ctx, errors.New("state is nil")
+	}
+
+	requestID := revent.RequestID(uuid.New())
+	_, err := reventsdkgo.QueryRequest(ctx, s.state, requestID, testQuery, &bddQueryInput{Value: "any"})
+	s.queryErr = err
+
+	return ctx, nil
+}
+
+func (s *scenarioState) theQueryShouldFailWithQueryHandlerNotFound(ctx context.Context) (context.Context, error) {
+	if s.queryErr == nil {
+		return ctx, errors.New("expected query to fail, got nil")
+	}
+
+	var queryErr *messages.QueryRequestedErrorMsg
+	if !errors.As(s.queryErr, &queryErr) {
+		return ctx, fmt.Errorf("expected QueryRequestedErrorMsg, got: %w", s.queryErr)
+	}
+
+	if queryErr.Reason != messages.QueryRequestedErrorReasonQueryHandlerNotFound {
+		return ctx, fmt.Errorf(
+			"expected query error reason %q, got %q",
+			messages.QueryRequestedErrorReasonQueryHandlerNotFound,
+			queryErr.Reason,
+		)
+	}
+
+	return ctx, nil
 }

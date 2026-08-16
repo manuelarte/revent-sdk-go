@@ -59,6 +59,7 @@ func initializeScenario(ctx *godog.ScenarioContext) {
 		s.subID = uuid.New()
 		s.registrationCh = make(chan messages.ServerMsg, 1)
 		s.openSessionErrCh = make(chan error, 1)
+		s.queryErr = nil
 
 		return ctx, nil
 	})
@@ -84,7 +85,9 @@ func initializeScenario(ctx *godog.ScenarioContext) {
 
 	ctx.Step(`^I open the SDK session$`, s.iOpenTheSDKSession)
 	ctx.Step(`^I cancel the SDK session context$`, s.iCancelTheSDKSessionContext)
+	ctx.Step(`^I send a query request without registering a handler$`, s.iSendAQueryRequestWithoutRegisteringAHandler)
 	ctx.Step(`^the client should be registered by the server$`, s.theClientShouldBeRegisteredByTheServer)
+	ctx.Step(`^the query should fail with QueryHandlerNotFound$`, s.theQueryShouldFailWithQueryHandlerNotFound)
 	ctx.Step(`^the server is running$`, s.theServerIsRunning)
 	ctx.Step(`^the server restarts$`, s.theServerRestarts)
 	ctx.Step(`^the session should finish with context canceled$`, s.openSessionShouldFinishWithContextCanceled)
