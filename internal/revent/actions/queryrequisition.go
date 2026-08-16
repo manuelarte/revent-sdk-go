@@ -106,7 +106,7 @@ func (c *QueryRequisition[I, O]) Do(
 					Response:  zero,
 				},
 			}, nil
-		case *messages.QueryRequestedErrorRawMsg:
+		case *messages.QueryRequestErrorRawMsg:
 			return &messages.QueryRequestResponseMsg[O]{
 				Err: &messages.QueryRequestedErrorMsg{
 					RequestID: payload.RequestID,

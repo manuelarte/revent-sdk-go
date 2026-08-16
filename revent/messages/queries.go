@@ -9,16 +9,16 @@ import (
 )
 
 const (
-	QueryRequestedErrorReasonRequestIdDuplicated  QueryRequestedErrorReason = "RequestIdDuplicated"
-	QueryRequestedErrorReasonQueryHandlerNotFound QueryRequestedErrorReason = "QueryHandlerNotFound"
-	QueryRequestedErrorReasonQueryTimedOut        QueryRequestedErrorReason = "QueryTimedOut"
-	QueryRequestedErrorReasonUnmarshalError       QueryRequestedErrorReason = "UnmarshalError"
+	QueryRequestedErrorReasonRequestIdDuplicated  QueryRequestErrorReason = "RequestIdDuplicated"
+	QueryRequestedErrorReasonQueryHandlerNotFound QueryRequestErrorReason = "QueryHandlerNotFound"
+	QueryRequestedErrorReasonQueryTimedOut        QueryRequestErrorReason = "QueryTimedOut"
+	QueryRequestedErrorReasonUnmarshalError       QueryRequestErrorReason = "UnmarshalError"
 )
 
 var (
 	_ ClientMsg = new(QueryRequestMsg)
 	_ ServerMsg = new(QueryRequestResponseMsg[revent.QueryResponse])
-	_ ServerMsg = new(QueryRequestedErrorRawMsg)
+	_ ServerMsg = new(QueryRequestErrorRawMsg)
 )
 
 var (
@@ -49,18 +49,18 @@ type (
 		Response  O
 	}
 
-	QueryRequestedErrorReason string
+	QueryRequestErrorReason string
 
-	QueryRequestedErrorRawMsg struct {
+	QueryRequestErrorRawMsg struct {
 		RequestID revent.RequestID
-		Reason    QueryRequestedErrorReason
+		Reason    QueryRequestErrorReason
 	}
 
 	//nolint:errname // keep consistency with Msg at the end
 	QueryRequestedErrorMsg struct {
 		RequestID revent.RequestID
 		QueryID   revent.QueryID
-		Reason    QueryRequestedErrorReason
+		Reason    QueryRequestErrorReason
 		Details   string
 	}
 )
@@ -93,7 +93,7 @@ func (q QueryResponseRawMsg) GetRequestID() revent.RequestID {
 	return q.RequestID
 }
 
-func (q QueryRequestedErrorRawMsg) GetRequestID() revent.RequestID {
+func (q QueryRequestErrorRawMsg) GetRequestID() revent.RequestID {
 	return q.RequestID
 }
 
@@ -103,6 +103,6 @@ func (q QueryRequestedErrorMsg) GetRequestID() revent.RequestID {
 
 func (q QueryRequestMsg) clientMessage()            {}
 func (e QueryResponseRawMsg) serverMessage()        {}
-func (e QueryRequestedErrorRawMsg) serverMessage()  {}
+func (e QueryRequestErrorRawMsg) serverMessage()    {}
 func (e QueryRequestedErrorMsg) serverMessage()     {}
 func (q QueryRequestResponseMsg[O]) serverMessage() {}
