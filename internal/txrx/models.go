@@ -1,7 +1,7 @@
 package txrx
 
 import (
-	"github.com/manuelarte/revent-sdk-go/revent/messages"
+	"github.com/manuelarte/revent-sdk-go/internal/revent/messages"
 )
 
 const (

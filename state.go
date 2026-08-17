@@ -8,10 +8,10 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/manuelarte/revent-sdk-go/internal"
+	"github.com/manuelarte/revent-sdk-go/internal/revent/messages"
 	"github.com/manuelarte/revent-sdk-go/internal/txrx"
 	"github.com/manuelarte/revent-sdk-go/logger"
 	"github.com/manuelarte/revent-sdk-go/revent"
-	"github.com/manuelarte/revent-sdk-go/revent/messages"
 )
 
 var _ internal.SubscriptionManager = new(ServerManager)

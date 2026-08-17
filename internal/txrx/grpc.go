@@ -17,8 +17,8 @@ import (
 
 	reventv1 "github.com/manuelarte/revent-sdk-go/internal/api/gRPC/revent/v1"
 	backoff2 "github.com/manuelarte/revent-sdk-go/internal/backoff"
+	"github.com/manuelarte/revent-sdk-go/internal/revent/messages"
 	"github.com/manuelarte/revent-sdk-go/logger"
-	"github.com/manuelarte/revent-sdk-go/revent/messages"
 )
 
 const (

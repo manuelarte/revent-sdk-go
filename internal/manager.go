@@ -3,7 +3,7 @@ package internal
 import (
 	"github.com/google/uuid"
 
-	"github.com/manuelarte/revent-sdk-go/revent/messages"
+	"github.com/manuelarte/revent-sdk-go/internal/revent/messages"
 )
 
 type (

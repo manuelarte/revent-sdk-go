@@ -12,9 +12,9 @@ import (
 	"github.com/google/uuid"
 
 	reventsdkgo "github.com/manuelarte/revent-sdk-go"
+	"github.com/manuelarte/revent-sdk-go/internal/revent/messages"
 	"github.com/manuelarte/revent-sdk-go/internal/txrx"
 	"github.com/manuelarte/revent-sdk-go/revent"
-	"github.com/manuelarte/revent-sdk-go/revent/messages"
 )
 
 const (
@@ -130,7 +130,11 @@ func (s *scenarioState) theClientShouldBeRegisteredByTheServer(ctx context.Conte
 		}
 
 		if registered.ClientID().String() != s.cfg.ClientID.String() {
-			return ctx, fmt.Errorf("unexpected client id: got %q want %q", registered.ClientID().String(), s.cfg.ClientID.String())
+			return ctx, fmt.Errorf(
+				"unexpected client id: got %q want %q",
+				registered.ClientID().String(),
+				s.cfg.ClientID.String(),
+			)
 		}
 
 		return ctx, nil
@@ -184,13 +188,17 @@ func (s *scenarioState) iSendAQueryRequest(ctx context.Context, table *godog.Tab
 	return ctx, nil
 }
 
-func (s *scenarioState) theQueryShouldFailWithQueryHandlerNotFound(ctx context.Context, requestIDRaw string) (context.Context, error) {
+func (s *scenarioState) theQueryShouldFailWithQueryHandlerNotFound(
+	ctx context.Context,
+	requestIDRaw string,
+) (context.Context, error) {
 	requestUUID, err := uuid.Parse(requestIDRaw)
 	if err != nil {
 		return ctx, fmt.Errorf("invalid RequestId %q: %w", requestIDRaw, err)
 	}
 
 	requestID := revent.RequestID(requestUUID)
+
 	queryErr, ok := s.queryErrByReqID[requestID]
 	if !ok {
 		return ctx, fmt.Errorf("query result for request %q was not captured", requestIDRaw)

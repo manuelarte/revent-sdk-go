@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	QueryRequestedErrorReasonRequestIdDuplicated  QueryRequestErrorReason = "RequestIdDuplicated"
+	QueryRequestedErrorReasonRequestIDDuplicated  QueryRequestErrorReason = "RequestIdDuplicated"
 	QueryRequestedErrorReasonQueryHandlerNotFound QueryRequestErrorReason = "QueryHandlerNotFound"
 	QueryRequestedErrorReasonQueryTimedOut        QueryRequestErrorReason = "QueryTimedOut"
 	QueryRequestedErrorReasonUnmarshalError       QueryRequestErrorReason = "UnmarshalError"

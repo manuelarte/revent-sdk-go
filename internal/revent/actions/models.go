@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/manuelarte/revent-sdk-go/internal"
-	"github.com/manuelarte/revent-sdk-go/revent/messages"
+	"github.com/manuelarte/revent-sdk-go/internal/revent/messages"
 )
 
 var _ error = new(UnexpectedMsgError)

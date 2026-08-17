@@ -7,6 +7,7 @@ import (
 )
 
 var (
+	//nolint:gochecknoglobals,unused // check later
 	testQuery revent.Query[*bddQueryInput, *bddQueryOutput] = "org.github.r-event.sdk.test.query"
 	_         revent.QueryRequestParameters                 = new(bddQueryInput)
 	_         revent.QueryResponse                          = new(bddQueryOutput)

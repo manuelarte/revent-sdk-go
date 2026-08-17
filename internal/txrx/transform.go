@@ -6,8 +6,8 @@ import (
 	"github.com/google/uuid"
 
 	reventv1 "github.com/manuelarte/revent-sdk-go/internal/api/gRPC/revent/v1"
+	"github.com/manuelarte/revent-sdk-go/internal/revent/messages"
 	"github.com/manuelarte/revent-sdk-go/revent"
-	"github.com/manuelarte/revent-sdk-go/revent/messages"
 )
 
 type UnknownMsgError struct {

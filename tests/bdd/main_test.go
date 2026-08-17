@@ -10,8 +10,8 @@ import (
 	grpcbackoff "google.golang.org/grpc/backoff"
 
 	reventsdkgo "github.com/manuelarte/revent-sdk-go"
+	"github.com/manuelarte/revent-sdk-go/internal/revent/messages"
 	"github.com/manuelarte/revent-sdk-go/revent"
-	"github.com/manuelarte/revent-sdk-go/revent/messages"
 )
 
 func TestFeatures(t *testing.T) {
