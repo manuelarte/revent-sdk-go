@@ -15,11 +15,11 @@ type (
 	// QueryID defines the unique identifier for a query.
 	QueryID string
 
-	// QueryRequestParameters is the parameter type of a Query. It must be a type that
+	// QueryRequestParameters is the parameter type of Query. It must be a type that
 	// encoding/json can marshal and unmarshal — normally a struct with `json` tags,.
 	QueryRequestParameters any
 
-	// QueryResponse is the response type of a Query. The same requirements as
+	// QueryResponse is the response type of Query. The same requirements as
 	// QueryRequestParameters apply.
 	QueryResponse any
 
