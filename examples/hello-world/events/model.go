@@ -1,8 +1,6 @@
 package events
 
 import (
-	"encoding/json"
-
 	"github.com/manuelarte/revent-sdk-go/revent"
 )
 
@@ -16,14 +14,6 @@ type (
 	}
 )
 
-func (u UserCreatedEvent) MarshalJSON() ([]byte, error) {
-	return json.Marshal(u)
-}
-
-func (u UserCreatedEvent) UnmarshalJSON(bytes []byte) error {
-	return json.Unmarshal(bytes, &u)
-}
-
 func (u UserCreatedEvent) ID() string {
-	return "examples.UserCreatedEvent"
+	return "org.github.manuelarte.users.UserCreatedEvent"
 }

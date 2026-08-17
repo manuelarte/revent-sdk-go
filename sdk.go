@@ -32,6 +32,10 @@ func OpenSession(ctx context.Context, s *ServerManager, cfg txrx.GrpcConfig) err
 // RegisterQueryHandler registers a query handler for a specific query ID.
 // It ensures that only one handler is registered for each query ID and returns an error
 // if a handler already exists for the given query ID.
+//
+// I and O must be types that encoding/json can handle. That is verified here against
+// their zero values, so a type JSON cannot encode (one holding a channel or a func,
+// for instance) is reported at registration instead of on the first live query.
 func RegisterQueryHandler[
 	I revent.QueryRequestParameters,
 	O revent.QueryResponse,
@@ -41,6 +45,14 @@ func RegisterQueryHandler[
 	qh revent.QueryHandlerFunc[I, O],
 ) error {
 	queryID := revent.QueryID(query)
+
+	if err := checkJSONEncodable[I](); err != nil {
+		return fmt.Errorf("query %s has invalid parameters type: %w", queryID, err)
+	}
+
+	if err := checkJSONEncodable[O](); err != nil {
+		return fmt.Errorf("query %s has invalid response type: %w", queryID, err)
+	}
 
 	s.muQueryHandlers.Lock()
 	defer s.muQueryHandlers.Unlock()
@@ -71,6 +83,19 @@ func RegisterQueryHandler[
 		}
 
 		return outputBytes, nil
+	}
+
+	return nil
+}
+
+// checkJSONEncodable reports whether encoding/json can encode T, by marshalling its
+// zero value. Types json rejects outright (channels, funcs, and structs containing
+// them) fail regardless of the value, so the zero value is enough to catch them.
+func checkJSONEncodable[T any]() error {
+	var zero T
+
+	if _, err := json.Marshal(zero); err != nil {
+		return fmt.Errorf("type %T is not JSON-serializable: %w", zero, err)
 	}
 
 	return nil

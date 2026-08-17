@@ -2,7 +2,6 @@ package revent
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -16,13 +15,13 @@ type (
 	// QueryID defines the unique identifier for a query.
 	QueryID string
 
-	MarshalerAndUnmarshaler interface {
-		json.Unmarshaler
-		json.Marshaler
-	}
+	// QueryRequestParameters is the parameter type of a Query. It must be a type that
+	// encoding/json can marshal and unmarshal — normally a struct with `json` tags,.
+	QueryRequestParameters any
 
-	QueryRequestParameters MarshalerAndUnmarshaler
-	QueryResponse          MarshalerAndUnmarshaler
+	// QueryResponse is the response type of a Query. The same requirements as
+	// QueryRequestParameters apply.
+	QueryResponse any
 
 	Query[I QueryRequestParameters, O QueryResponse]            QueryID
 	QueryHandlerFunc[I QueryRequestParameters, O QueryResponse] func(context.Context, I) O

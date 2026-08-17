@@ -2,14 +2,13 @@ package revent
 
 import (
 	"context"
-	"encoding/json"
 	"time"
 )
 
 type (
+	// Event is the payload of a SourceEvent. It must be a type that
+	// encoding/json can marshal and unmarshal.
 	Event interface {
-		json.Marshaler
-		json.Unmarshaler
 		ID() string
 	}
 
