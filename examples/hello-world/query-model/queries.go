@@ -29,33 +29,41 @@ type (
 )
 
 func (g getUserByIdQueryParams) UnmarshalJSON(bytes []byte) error {
-	return json.Unmarshal(bytes, &g)
+	type alias getUserByIdQueryParams
+	return json.Unmarshal(bytes, (*alias)(&g))
 }
 
 func (g getUserByIdQueryResponse) UnmarshalJSON(bytes []byte) error {
-	return json.Unmarshal(bytes, &g)
+	type alias getUserByIdQueryResponse
+	return json.Unmarshal(bytes, (*alias)(&g))
 }
 
 func (g getAllUsersResponse) UnmarshalJSON(bytes []byte) error {
-	return json.Unmarshal(bytes, &g)
+	type alias getAllUsersResponse
+	return json.Unmarshal(bytes, (*alias)(&g))
 }
 
 func (g getAllUsersParams) UnmarshalJSON(bytes []byte) error {
-	return json.Unmarshal(bytes, &g)
+	type alias getAllUsersParams
+	return json.Unmarshal(bytes, (*alias)(&g))
 }
 
 func (g getUserByIdQueryParams) MarshalJSON() ([]byte, error) {
-	return json.Marshal(g)
+	type alias getUserByIdQueryParams
+	return json.Marshal(alias(g))
 }
 
 func (g getUserByIdQueryResponse) MarshalJSON() ([]byte, error) {
-	return json.Marshal(g)
+	type alias getUserByIdQueryResponse
+	return json.Marshal(alias(g))
 }
 
 func (g getAllUsersResponse) MarshalJSON() ([]byte, error) {
-	return json.Marshal(g)
+	type alias getAllUsersResponse
+	return json.Marshal(alias(g))
 }
 
 func (g getAllUsersParams) MarshalJSON() ([]byte, error) {
-	return json.Marshal(g)
+	type alias getAllUsersParams
+	return json.Marshal(alias(g))
 }

@@ -36,7 +36,7 @@ func (uqh *userQueryHandler) GetAllUsers(_ context.Context, _ getAllUsersParams)
 // OnUserCreatedEvent event handler for events.UserCreatedEvent
 func (uqh *userQueryHandler) OnUserCreatedEvent(_ context.Context, event revent.SourceEvent[events.UserCreatedEvent]) {
 	uqh.users[event.Payload.Id] = user{
-		id:       event.Payload.Id,
-		fullName: fmt.Sprintf("%s %s", event.Payload.Name, event.Payload.Surname),
+		Id:       event.Payload.Id,
+		FullName: fmt.Sprintf("%s %s", event.Payload.Name, event.Payload.Surname),
 	}
 }

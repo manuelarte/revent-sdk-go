@@ -17,14 +17,17 @@ const (
 
 var (
 	_ ClientMsg = new(QueryRequestMsg)
+	_ ClientMsg = new(QueryResponseRawMsg)
 	_ ServerMsg = new(QueryRequestResponseMsg[revent.QueryResponse])
 	_ ServerMsg = new(QueryRequestErrorRawMsg)
+	_ ServerMsg = new(QueryRequestedMsg)
 )
 
 var (
 	_ error         = new(QueryRequestedErrorMsg)
 	_ IdempotentMsg = new(QueryRequestMsg)
 	_ IdempotentMsg = new(QueryRequestResponseMsg[revent.QueryResponse])
+	_ IdempotentMsg = new(QueryRequestedMsg)
 )
 
 type (
@@ -49,7 +52,7 @@ type (
 	QueryRequestedMsg struct {
 		RequestID  revent.RequestID
 		QueryID    revent.QueryID
-		Parameters revent.QueryRequestParameters
+		Parameters map[string]string
 	}
 
 	// QueryResponseRawMsg is the raw response to a QueryRequest, lacking extra information.
@@ -96,11 +99,7 @@ func (q QueryRequestResponseMsg[O]) GetRequestID() revent.RequestID {
 }
 
 func (e QueryRequestedErrorMsg) Error() string {
-	if e.Reason == "" {
-		return fmt.Sprintf("query %q response error", e.QueryID)
-	}
-
-	return fmt.Sprintf("query %q response error: %s", e.QueryID, e.Reason)
+	return fmt.Sprintf("query %q response error: %q", e.QueryID, e.Reason)
 }
 
 func (q QueryRequestMsg) GetRequestID() revent.RequestID {
@@ -111,16 +110,21 @@ func (q QueryResponseRawMsg) GetRequestID() revent.RequestID {
 	return q.RequestID
 }
 
-func (q QueryRequestErrorRawMsg) GetRequestID() revent.RequestID {
-	return q.RequestID
+func (e QueryRequestErrorRawMsg) GetRequestID() revent.RequestID {
+	return e.RequestID
 }
 
-func (q QueryRequestedErrorMsg) GetRequestID() revent.RequestID {
+func (e QueryRequestedErrorMsg) GetRequestID() revent.RequestID {
+	return e.RequestID
+}
+
+func (q QueryRequestedMsg) GetRequestID() revent.RequestID {
 	return q.RequestID
 }
 
 func (q QueryRequestMsg) clientMessage()            {}
-func (e QueryResponseRawMsg) serverMessage()        {}
+func (q QueryResponseRawMsg) clientMessage()        {}
+func (q QueryResponseRawMsg) serverMessage()        {}
 func (e QueryRequestErrorRawMsg) serverMessage()    {}
 func (e QueryRequestedErrorMsg) serverMessage()     {}
 func (q QueryRequestResponseMsg[O]) serverMessage() {}

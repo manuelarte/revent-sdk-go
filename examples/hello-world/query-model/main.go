@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 
 	"github.com/google/uuid"
 	"golang.org/x/sync/errgroup"
@@ -15,7 +16,7 @@ import (
 )
 
 func main() {
-	logger := slog.Default()
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	if err := run(logger); err != nil {
 		logger.Error("Error running the application", slog.Any("error", err))
 	}
@@ -36,7 +37,7 @@ func run(logger *slog.Logger) error {
 	uqh := userQueryHandler{users: make(map[int]user)}
 
 	errRegisteringHandlers := errors.Join(
-		// TODO: do flow of handle query so then the query part is finished.
+		reventsdkgo.RegisterQueryHandler(s, getAllUsers, uqh.GetAllUsers),
 		reventsdkgo.RegisterQueryHandler(s, getUserByID, uqh.GetUserByID),
 		reventsdkgo.RegisterSourceEventHandler(uqh.OnUserCreatedEvent),
 	)
@@ -71,9 +72,12 @@ clientRegisteredLoop:
 	}
 
 	requestID := revent.RequestID(uuid.New())
-	if _, errQueryRequest := reventsdkgo.QueryRequest(ctx, s, requestID, getAllUsers, getAllUsersParams{}); errQueryRequest != nil {
+	output, errQueryRequest := reventsdkgo.QueryRequest(ctx, s, requestID, getAllUsers, getAllUsersParams{})
+	if errQueryRequest != nil {
 		logger.ErrorContext(ctx, "failed to process query request", slog.Any("err", errQueryRequest))
 	}
+
+	logger.InfoContext(ctx, "Output for QueryRequest", slog.Any("output", output))
 
 	return g.Wait()
 }

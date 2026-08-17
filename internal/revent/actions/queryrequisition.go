@@ -2,6 +2,7 @@ package actions
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -60,8 +61,11 @@ func (c *QueryRequisition[I, O]) Do(
 			return false
 		}
 
-		if identifiable, ok := msg.(messages.IdempotentMsg); ok {
-			return identifiable.GetRequestID().String() == params.RequestID.String()
+		switch msg.(type) {
+		case *messages.QueryResponseRawMsg, *messages.QueryRequestErrorRawMsg:
+			if identifiable, ok := msg.(messages.IdempotentMsg); ok {
+				return identifiable.GetRequestID().String() == params.RequestID.String()
+			}
 		}
 
 		return false
@@ -88,7 +92,7 @@ func (c *QueryRequisition[I, O]) Do(
 		case *messages.QueryResponseRawMsg:
 			var zero O
 
-			errUnmarshal := zero.UnmarshalJSON(payload.Response)
+			errUnmarshal := json.Unmarshal(payload.Response, &zero)
 			if errUnmarshal != nil {
 				return &messages.QueryRequestResponseMsg[O]{
 					Err: &messages.QueryRequestedErrorMsg{

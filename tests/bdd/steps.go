@@ -27,11 +27,12 @@ type (
 		cfg        reventsdkgo.Config
 		state      *reventsdkgo.ServerManager
 		// we subscribe to every single message to do the checks later on.
-		subID             uuid.UUID
-		registrationCh    chan messages.ServerMsg
-		openSessionErrCh  chan error
-		openSessionCancel context.CancelFunc
-		queryErrByReqID   map[revent.RequestID]error
+		subID              uuid.UUID
+		registrationCh     chan messages.ServerMsg
+		openSessionErrCh   chan error
+		openSessionCancel  context.CancelFunc
+		queryErrByReqID    map[revent.RequestID]error
+		queryResultByReqID map[revent.RequestID]*bddQueryOutput
 	}
 )
 
@@ -56,14 +57,48 @@ func (s *scenarioState) theServerRestarts(ctx context.Context) (context.Context,
 	return ctx, nil
 }
 
-func (s *scenarioState) iOpenTheSDKSession(ctx context.Context) (context.Context, error) {
-	state, err := reventsdkgo.NewState(s.cfg)
-	if err != nil {
-		return ctx, fmt.Errorf("failed to create state: %w", err)
+func (s *scenarioState) iRegisterAHandlerForQuery(ctx context.Context, queryIDRaw string) (context.Context, error) {
+	if s.state == nil {
+		state, err := reventsdkgo.NewState(s.cfg)
+		if err != nil {
+			return ctx, fmt.Errorf("failed to create state: %w", err)
+		}
+
+		s.state = state
 	}
 
-	s.state = state
-	state.Subscribe(s.subID, func(msg messages.ServerMsg) bool {
+	query := revent.Query[*bddQueryInput, *bddQueryOutput](queryIDRaw)
+
+	err := reventsdkgo.RegisterQueryHandler(
+		s.state,
+		query,
+		func(ctx context.Context, params *bddQueryInput) *bddQueryOutput {
+			val := ""
+			if params != nil {
+				val = params.Value
+			}
+
+			return &bddQueryOutput{Result: "handled-" + val}
+		},
+	)
+	if err != nil {
+		return ctx, fmt.Errorf("failed to register query handler: %w", err)
+	}
+
+	return ctx, nil
+}
+
+func (s *scenarioState) iOpenTheSDKSession(ctx context.Context) (context.Context, error) {
+	if s.state == nil {
+		state, err := reventsdkgo.NewState(s.cfg)
+		if err != nil {
+			return ctx, fmt.Errorf("failed to create state: %w", err)
+		}
+
+		s.state = state
+	}
+
+	s.state.Subscribe(s.subID, func(msg messages.ServerMsg) bool {
 		return true
 	}, s.registrationCh)
 
@@ -182,8 +217,39 @@ func (s *scenarioState) iSendAQueryRequest(ctx context.Context, table *godog.Tab
 
 	requestID := revent.RequestID(requestUUID)
 	queryID := revent.Query[*bddQueryInput, *bddQueryOutput](queryIDRaw)
-	_, err = reventsdkgo.QueryRequest(ctx, s.state, requestID, queryID, &bddQueryInput{Value: "any"})
+	output, err := reventsdkgo.QueryRequest(ctx, s.state, requestID, queryID, &bddQueryInput{Value: "any"})
+
 	s.queryErrByReqID[requestID] = err
+	if output != nil {
+		s.queryResultByReqID[requestID] = output
+	}
+
+	return ctx, nil
+}
+
+func (s *scenarioState) theQueryShouldSucceedWithResult(
+	ctx context.Context,
+	requestIDRaw, expectedResult string,
+) (context.Context, error) {
+	requestUUID, err := uuid.Parse(requestIDRaw)
+	if err != nil {
+		return ctx, fmt.Errorf("invalid RequestId %q: %w", requestIDRaw, err)
+	}
+
+	requestID := revent.RequestID(requestUUID)
+
+	if queryErr := s.queryErrByReqID[requestID]; queryErr != nil {
+		return ctx, fmt.Errorf("expected query to succeed, got error: %w", queryErr)
+	}
+
+	res, ok := s.queryResultByReqID[requestID]
+	if !ok || res == nil {
+		return ctx, fmt.Errorf("query result for request %q was not captured", requestIDRaw)
+	}
+
+	if res.Result != expectedResult {
+		return ctx, fmt.Errorf("expected query result %q, got %q", expectedResult, res.Result)
+	}
 
 	return ctx, nil
 }

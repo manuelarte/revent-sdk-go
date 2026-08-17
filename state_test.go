@@ -5,7 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
+	"time"
 
+	"github.com/google/uuid"
+
+	"github.com/manuelarte/revent-sdk-go/internal/revent/messages"
+	"github.com/manuelarte/revent-sdk-go/internal/txrx"
 	"github.com/manuelarte/revent-sdk-go/logger"
 	"github.com/manuelarte/revent-sdk-go/revent"
 )
@@ -15,12 +20,16 @@ type testQueryInput struct {
 	Value string `json:"value"`
 }
 
-func (t *testQueryInput) UnmarshalJSON(_ []byte) error {
-	return nil
+func (t *testQueryInput) UnmarshalJSON(b []byte) error {
+	type alias testQueryInput
+
+	return json.Unmarshal(b, (*alias)(t))
 }
 
 func (t *testQueryInput) MarshalJSON() ([]byte, error) {
-	return json.Marshal(t)
+	type alias testQueryInput
+
+	return json.Marshal((*alias)(t))
 }
 
 // testQueryOutput implements json.Marshaler.
@@ -28,12 +37,16 @@ type testQueryOutput struct {
 	Result string `json:"result"`
 }
 
-func (t testQueryOutput) MarshalJSON() ([]byte, error) {
-	return json.Marshal(t)
+func (t *testQueryOutput) MarshalJSON() ([]byte, error) {
+	type alias testQueryOutput
+
+	return json.Marshal((*alias)(t))
 }
 
-func (t testQueryOutput) UnmarshalJSON(_ []byte) error {
-	return nil
+func (t *testQueryOutput) UnmarshalJSON(b []byte) error {
+	type alias testQueryOutput
+
+	return json.Unmarshal(b, (*alias)(t))
 }
 
 // Test NewState.
@@ -73,9 +86,9 @@ func TestRegisterQueryHandler(t *testing.T) {
 		t.Fatalf("NewState() error = %v", err)
 	}
 
-	queryID := revent.Query[*testQueryInput, testQueryOutput]("test-query-id")
-	handler := func(ctx context.Context, params *testQueryInput) testQueryOutput {
-		return testQueryOutput{}
+	queryID := revent.Query[*testQueryInput, *testQueryOutput]("test-query-id")
+	handler := func(ctx context.Context, params *testQueryInput) *testQueryOutput {
+		return &testQueryOutput{}
 	}
 
 	err = RegisterQueryHandler(s, queryID, handler)
@@ -118,4 +131,109 @@ func TestOpenSessionCanOnlyBeCalledOncePerState(t *testing.T) {
 	if err != nil {
 		t.Errorf("OpenSession() second call error = %v, want nil (idempotent due to sync.Once)", err)
 	}
+}
+
+type mockTxRx struct {
+	incoming     chan messages.ServerMsg
+	sessionEvent chan txrx.SessionEvent
+	sentMsgs     chan messages.ClientMsg
+}
+
+func newMockTxRx() *mockTxRx {
+	return &mockTxRx{
+		incoming:     make(chan messages.ServerMsg, 10),
+		sessionEvent: make(chan txrx.SessionEvent, 10),
+		sentMsgs:     make(chan messages.ClientMsg, 10),
+	}
+}
+
+func (m *mockTxRx) Send(msg messages.ClientMsg) error {
+	m.sentMsgs <- msg
+
+	return nil
+}
+
+func (m *mockTxRx) Incoming() <-chan messages.ServerMsg {
+	return m.incoming
+}
+
+func (m *mockTxRx) SessionEvent() <-chan txrx.SessionEvent {
+	return m.sessionEvent
+}
+
+func TestQueryHandlingAndResponding(t *testing.T) {
+	s, err := NewState(DefaultConfig())
+	if err != nil {
+		t.Fatalf("NewState() error = %v", err)
+	}
+
+	queryID := revent.Query[*testQueryInput, *testQueryOutput]("getUser")
+	handlerCalled := make(chan *testQueryInput, 1)
+
+	err = RegisterQueryHandler(s, queryID, func(ctx context.Context, params *testQueryInput) *testQueryOutput {
+		handlerCalled <- params
+
+		return &testQueryOutput{Result: "hello-" + params.Value}
+	})
+	if err != nil {
+		t.Fatalf("RegisterQueryHandler() error = %v", err)
+	}
+
+	mock := newMockTxRx()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	startErrCh := make(chan error, 1)
+
+	go func() {
+		startErrCh <- s.start(ctx, func() (txrx.TxRx, error) {
+			return mock, nil
+		})
+	}()
+
+	requestUUID := uuid.New()
+	reqMsg := &messages.QueryRequestedMsg{
+		RequestID:  revent.RequestID(requestUUID),
+		QueryID:    "getUser",
+		Parameters: map[string]string{"value": "alice"},
+	}
+
+	mock.incoming <- reqMsg
+
+	select {
+	case receivedInput := <-handlerCalled:
+		if receivedInput == nil || receivedInput.Value != "alice" {
+			t.Errorf("expected receivedInput value 'alice', got: %+v", receivedInput)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for query handler to be called")
+	}
+
+	select {
+	case sent := <-mock.sentMsgs:
+		rawResp, ok := sent.(*messages.QueryResponseRawMsg)
+		if !ok {
+			t.Fatalf("expected *messages.QueryResponseRawMsg, got: %T", sent)
+		}
+
+		if rawResp.RequestID != revent.RequestID(requestUUID) {
+			t.Errorf("expected RequestID %s, got %s", requestUUID, rawResp.RequestID)
+		}
+
+		var output testQueryOutput
+
+		if errUnmarshal := json.Unmarshal(rawResp.Response, &output); errUnmarshal != nil {
+			t.Fatalf("failed to unmarshal sent response: %v", errUnmarshal)
+		}
+
+		if output.Result != "hello-alice" {
+			t.Errorf("expected result 'hello-alice', got %q", output.Result)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for query response to be sent")
+	}
+
+	cancel()
+	<-startErrCh
 }

@@ -60,6 +60,7 @@ func initializeScenario(ctx *godog.ScenarioContext) {
 		s.registrationCh = make(chan messages.ServerMsg, 1)
 		s.openSessionErrCh = make(chan error, 1)
 		s.queryErrByReqID = make(map[revent.RequestID]error)
+		s.queryResultByReqID = make(map[revent.RequestID]*bddQueryOutput)
 
 		return ctx, nil
 	})
@@ -83,11 +84,13 @@ func initializeScenario(ctx *godog.ScenarioContext) {
 		return ctx, err
 	})
 
+	ctx.Step(`^I register a handler for query "([^"]*)"$`, s.iRegisterAHandlerForQuery)
 	ctx.Step(`^I open the SDK session$`, s.iOpenTheSDKSession)
 	ctx.Step(`^I cancel the SDK session context$`, s.iCancelTheSDKSessionContext)
 	ctx.Step(`^I send a query request$`, s.iSendAQueryRequest)
 	ctx.Step(`^the client should be registered by the server$`, s.theClientShouldBeRegisteredByTheServer)
 	ctx.Step(`^the query "([^"]*)" should fail with QueryHandlerNotFound$`, s.theQueryShouldFailWithQueryHandlerNotFound)
+	ctx.Step(`^the query "([^"]*)" should succeed with result "([^"]*)"$`, s.theQueryShouldSucceedWithResult)
 	ctx.Step(`^the server is running$`, s.theServerIsRunning)
 	ctx.Step(`^the server restarts$`, s.theServerRestarts)
 	ctx.Step(`^the session should finish with context canceled$`, s.openSessionShouldFinishWithContextCanceled)

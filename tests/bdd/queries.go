@@ -23,18 +23,26 @@ type (
 	}
 )
 
-func (t *bddQueryInput) UnmarshalJSON(_ []byte) error {
-	return nil
+func (t *bddQueryInput) UnmarshalJSON(b []byte) error {
+	type alias bddQueryInput
+
+	return json.Unmarshal(b, (*alias)(t))
 }
 
 func (t *bddQueryInput) MarshalJSON() ([]byte, error) {
-	return json.Marshal(t)
+	type alias bddQueryInput
+
+	return json.Marshal((*alias)(t))
 }
 
-func (t bddQueryOutput) MarshalJSON() ([]byte, error) {
-	return json.Marshal(t)
+func (t *bddQueryOutput) MarshalJSON() ([]byte, error) {
+	type alias bddQueryOutput
+
+	return json.Marshal((*alias)(t))
 }
 
-func (t bddQueryOutput) UnmarshalJSON(_ []byte) error {
-	return nil
+func (t *bddQueryOutput) UnmarshalJSON(b []byte) error {
+	type alias bddQueryOutput
+
+	return json.Unmarshal(b, (*alias)(t))
 }

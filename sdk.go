@@ -2,6 +2,7 @@ package revent_sdk_go
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -50,9 +51,47 @@ func RegisterQueryHandler[
 		}
 	}
 
-	s.queryHandlers[queryID] = qh
+	s.queryHandlers[queryID] = func(ctx context.Context, params map[string]string) ([]byte, error) {
+		var input I
+
+		jsonBytes, err := parametersToJSON(params)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encode query parameters: %w", err)
+		}
+
+		if errUnmarshal := json.Unmarshal(jsonBytes, &input); errUnmarshal != nil {
+			return nil, fmt.Errorf("failed to unmarshal query parameters: %w", errUnmarshal)
+		}
+
+		output := qh(ctx, input)
+
+		outputBytes, errMarshal := json.Marshal(output)
+		if errMarshal != nil {
+			return nil, fmt.Errorf("failed to marshal query response: %w", errMarshal)
+		}
+
+		return outputBytes, nil
+	}
 
 	return nil
+}
+
+func parametersToJSON(params map[string]string) ([]byte, error) {
+	if len(params) == 0 {
+		return []byte("{}"), nil
+	}
+
+	parsed := make(map[string]any, len(params))
+	for k, v := range params {
+		var val any
+		if err := json.Unmarshal([]byte(v), &val); err == nil {
+			parsed[k] = val
+		} else {
+			parsed[k] = v
+		}
+	}
+
+	return json.Marshal(parsed)
 }
 
 func RegisterSourceEventHandler[E revent.Event, S revent.SourceEvent[E]](eh revent.SourceEventHandler[E, S]) error {

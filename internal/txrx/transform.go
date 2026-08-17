@@ -1,6 +1,7 @@
 package txrx
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -30,12 +31,36 @@ func transformClientMessageToGRPC(msg messages.ClientMsg) (*reventv1.ClientToSer
 			},
 		}, nil
 	case *messages.QueryRequestMsg:
+		var paramsMap map[string]string
+
+		if msg.Parameters != nil {
+			bytes, err := json.Marshal(msg.Parameters)
+			if err == nil {
+				var rawMap map[string]any
+				if errUnmarshal := json.Unmarshal(bytes, &rawMap); errUnmarshal == nil {
+					paramsMap = make(map[string]string, len(rawMap))
+					for k, v := range rawMap {
+						paramsMap[k] = fmt.Sprint(v)
+					}
+				}
+			}
+		}
+
 		return &reventv1.ClientToServerMessage{
 			Payload: &reventv1.ClientToServerMessage_QueryRequest{
 				QueryRequest: &reventv1.QueryRequest{
 					RequestId:  msg.RequestID.String(),
 					QueryId:    msg.QueryID.String(),
-					Parameters: nil,
+					Parameters: paramsMap,
+				},
+			},
+		}, nil
+	case *messages.QueryResponseRawMsg:
+		return &reventv1.ClientToServerMessage{
+			Payload: &reventv1.ClientToServerMessage_QueryResponse{
+				QueryResponse: &reventv1.QueryResponse{
+					RequestId: msg.RequestID.String(),
+					Result:    msg.Response,
 				},
 			},
 		}, nil
@@ -60,6 +85,12 @@ func transformServerMessageToGRPC(msg *reventv1.ServerToClientMessage) (messages
 				ClientID: revent.ClientID(casted.ClientRegistrationError.GetClientId()),
 				Reason:   casted.ClientRegistrationError.GetReason(),
 			},
+		}, nil
+	case *reventv1.ServerToClientMessage_QueryRequested:
+		return &messages.QueryRequestedMsg{
+			RequestID:  revent.RequestID(uuid.MustParse(casted.QueryRequested.GetRequestId())),
+			QueryID:    revent.QueryID(casted.QueryRequested.GetQueryId()),
+			Parameters: casted.QueryRequested.GetParameters(),
 		}, nil
 	case *reventv1.ServerToClientMessage_QueryResponded:
 		return &messages.QueryResponseRawMsg{

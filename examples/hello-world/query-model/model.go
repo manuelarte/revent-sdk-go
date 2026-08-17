@@ -2,7 +2,7 @@ package main
 
 type (
 	user struct {
-		id       int
-		fullName string
+		Id       int    `json:"id"`
+		FullName string `json:"fullName"`
 	}
 )

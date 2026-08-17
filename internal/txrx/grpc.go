@@ -67,6 +67,7 @@ type (
 		connecting atomic.Bool
 		/* mu protects fields below */
 		mu       sync.RWMutex
+		sendMu   sync.Mutex
 		conn     *grpc.ClientConn
 		stream   grpc.BidiStreamingClient[reventv1.ClientToServerMessage, reventv1.ServerToClientMessage]
 		incoming chan messages.ServerMsg
@@ -193,6 +194,9 @@ func (g *GRPC) Send(m messages.ClientMsg) error {
 	if err != nil {
 		return fmt.Errorf("failed to transform message to gRPC: %w", err)
 	}
+
+	g.sendMu.Lock()
+	defer g.sendMu.Unlock()
 
 	return stream.Send(msg)
 }

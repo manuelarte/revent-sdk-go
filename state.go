@@ -30,10 +30,12 @@ type (
 		muSubscribers   sync.RWMutex
 		subscribers     map[uuid.UUID]serverMessageSubscription
 		muQueryHandlers sync.RWMutex
-		queryHandlers   map[revent.QueryID]any
+		queryHandlers   map[revent.QueryID]queryHandler
 
 		stateChan chan txrx.ConnectionState
 	}
+
+	queryHandler func(ctx context.Context, params map[string]string) ([]byte, error)
 
 	serverMessageSubscription struct {
 		predicate func(msg messages.ServerMsg) bool
@@ -50,7 +52,7 @@ func NewState(cfg Config) (*ServerManager, error) {
 		logger:        cfg.Logger,
 		clientID:      cfg.ClientID,
 		subscribers:   make(map[uuid.UUID]serverMessageSubscription),
-		queryHandlers: make(map[revent.QueryID]any),
+		queryHandlers: make(map[revent.QueryID]queryHandler),
 		stateChan:     make(chan txrx.ConnectionState, 1),
 	}, nil
 }
@@ -104,6 +106,7 @@ func (s *ServerManager) start(
 				continue
 			}
 
+			s.handleIncomingMessage(ctx, msg)
 			s.dispatchServerMessage(msg)
 		case sessionEvent, ok := <-txRxSessionChan:
 			if !ok {
@@ -135,6 +138,38 @@ func (s *ServerManager) publishStateChange(state txrx.ConnectionState) {
 		case s.stateChan <- state:
 		default:
 		}
+	}
+}
+
+func (s *ServerManager) handleIncomingMessage(ctx context.Context, msg messages.ServerMsg) {
+	if queryRequested, ok := msg.(*messages.QueryRequestedMsg); ok {
+		go s.handleQueryRequested(ctx, queryRequested)
+	}
+}
+
+func (s *ServerManager) handleQueryRequested(ctx context.Context, msg *messages.QueryRequestedMsg) {
+	s.muQueryHandlers.RLock()
+	handler, ok := s.queryHandlers[msg.QueryID]
+	s.muQueryHandlers.RUnlock()
+
+	if !ok {
+		s.logger.Error("no handler registered for query", "queryID", msg.QueryID, "requestID", msg.RequestID)
+
+		return
+	}
+
+	responseBytes, err := handler(ctx, msg.Parameters)
+	if err != nil {
+		s.logger.Error("failed to handle query", "queryID", msg.QueryID, "requestID", msg.RequestID, "error", err)
+
+		return
+	}
+
+	if errSend := s.txRx.Send(&messages.QueryResponseRawMsg{
+		RequestID: msg.RequestID,
+		Response:  responseBytes,
+	}); errSend != nil {
+		s.logger.Error("failed to send query response", "queryID", msg.QueryID, "requestID", msg.RequestID, "error", errSend)
 	}
 }
 
