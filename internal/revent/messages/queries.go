@@ -45,6 +45,13 @@ type (
 		Parameters revent.QueryRequestParameters
 	}
 
+	// QueryRequestedMsg is the msg received by the server asking to solve a query.
+	QueryRequestedMsg struct {
+		RequestID  revent.RequestID
+		QueryID    revent.QueryID
+		Parameters revent.QueryRequestParameters
+	}
+
 	// QueryResponseRawMsg is the raw response to a QueryRequest, lacking extra information.
 	// Struct not to be used directly.
 	QueryResponseRawMsg struct {
@@ -117,3 +124,4 @@ func (e QueryResponseRawMsg) serverMessage()        {}
 func (e QueryRequestErrorRawMsg) serverMessage()    {}
 func (e QueryRequestedErrorMsg) serverMessage()     {}
 func (q QueryRequestResponseMsg[O]) serverMessage() {}
+func (q QueryRequestedMsg) serverMessage()          {}
