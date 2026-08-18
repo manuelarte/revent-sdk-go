@@ -98,9 +98,9 @@ func transformServerMessageToGRPC(msg *reventv1.ServerToClientMessage) (messages
 			Response:  casted.QueryResponded.GetResult(),
 		}, nil
 	case *reventv1.ServerToClientMessage_QueryRequestedError:
-		return &messages.QueryRequestErrorRawMsg{
+		return &messages.QueryRequestedErrorRawMsg{
 			RequestID: revent.RequestID(uuid.MustParse(casted.QueryRequestedError.GetRequestId())),
-			Reason:    messages.QueryRequestErrorReason(casted.QueryRequestedError.GetReason()),
+			Reason:    messages.QueryRequestedErrorReason(casted.QueryRequestedError.GetReason()),
 		}, nil
 	//nolint:nilnil // think about this later.
 	case *reventv1.ServerToClientMessage_Heartbeat:

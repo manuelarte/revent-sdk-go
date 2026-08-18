@@ -3,7 +3,6 @@ package actions
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"testing"
 	"time"
 
@@ -53,11 +52,11 @@ func TestClientRegistrationDoSuccess(t *testing.T) {
 			},
 		},
 	}
-	registration := NewClientRegistration(slog.Default(), m)
+	registration := NewClientRegistration(m)
 
 	output, err := registration.Do(t.Context(), ClientRegistrationParams{
 		ClientID:      "my-client",
-		QueryHandlers: []revent.QueryID{},
+		QueryHandlers: make([]revent.QueryID, 0),
 	})
 	if err != nil {
 		t.Fatalf("Do() error = %v, want nil", err)
@@ -81,11 +80,11 @@ func TestClientRegistrationDoServerError(t *testing.T) {
 			},
 		},
 	}
-	registration := NewClientRegistration(slog.Default(), m)
+	registration := NewClientRegistration(m)
 
 	output, err := registration.Do(t.Context(), ClientRegistrationParams{
 		ClientID:      "my-client",
-		QueryHandlers: []revent.QueryID{},
+		QueryHandlers: make([]revent.QueryID, 0),
 	})
 	if err != nil {
 		t.Fatalf("Do() error = %v, want nil", err)
@@ -108,14 +107,14 @@ func TestClientRegistrationDoTimeout(t *testing.T) {
 	m := &fakeRegistrationManager{
 		response: nil,
 	}
-	registration := NewClientRegistration(slog.Default(), m)
+	registration := NewClientRegistration(m)
 
 	newCtx, cancel := context.WithTimeout(t.Context(), 10*time.Millisecond)
 	defer cancel()
 
 	_, err := registration.Do(newCtx, ClientRegistrationParams{
 		ClientID:      "my-client",
-		QueryHandlers: []revent.QueryID{},
+		QueryHandlers: make([]revent.QueryID, 0),
 	})
 	if err == nil {
 		t.Fatal("Do() error = nil, want timeout")
@@ -134,14 +133,14 @@ func TestClientRegistrationDoTimeoutWhenMessageDoesNotMatchPredicate(t *testing.
 			},
 		},
 	}
-	registration := NewClientRegistration(slog.Default(), m)
+	registration := NewClientRegistration(m)
 
 	newCtx, cancel := context.WithTimeout(t.Context(), 10*time.Millisecond)
 	defer cancel()
 
 	_, err := registration.Do(newCtx, ClientRegistrationParams{
 		ClientID:      "my-client",
-		QueryHandlers: []revent.QueryID{},
+		QueryHandlers: make([]revent.QueryID, 0),
 	})
 	if err == nil {
 		t.Fatal("Do() error = nil, want timeout")

@@ -163,7 +163,10 @@ func (s *ServerManager) handleIncomingMessage(ctx context.Context, msg messages.
 				queryCtx, cancel := context.WithTimeout(ctx, queryHandlingTimeout)
 				defer cancel()
 
-				s.queryHandling.Do(queryCtx, actions.QueryHandlingParams{Msg: queryRequested})
+				err := s.queryHandling.Do(queryCtx, actions.QueryHandlingParams{Msg: queryRequested})
+				if err != nil {
+					s.logger.Error("error handling query request", "error", err)
+				}
 			}()
 		default:
 			s.logger.Warn(

@@ -9,17 +9,17 @@ import (
 )
 
 const (
-	QueryRequestedErrorReasonRequestIDDuplicated  QueryRequestErrorReason = "RequestIdDuplicated"
-	QueryRequestedErrorReasonQueryHandlerNotFound QueryRequestErrorReason = "QueryHandlerNotFound"
-	QueryRequestedErrorReasonQueryTimedOut        QueryRequestErrorReason = "QueryTimedOut"
-	QueryRequestedErrorReasonUnmarshalError       QueryRequestErrorReason = "UnmarshalError"
+	QueryRequestedErrorReasonRequestIDDuplicated  QueryRequestedErrorReason = "RequestIdDuplicated"
+	QueryRequestedErrorReasonQueryHandlerNotFound QueryRequestedErrorReason = "QueryHandlerNotFound"
+	QueryRequestedErrorReasonQueryTimedOut        QueryRequestedErrorReason = "QueryTimedOut"
+	QueryRequestedErrorReasonUnmarshalError       QueryRequestedErrorReason = "UnmarshalError"
 )
 
 var (
 	_ ClientMsg = new(QueryRequestMsg)
 	_ ClientMsg = new(QueryResponseRawMsg)
 	_ ServerMsg = new(QueryRequestResponseMsg[revent.QueryResponse])
-	_ ServerMsg = new(QueryRequestErrorRawMsg)
+	_ ServerMsg = new(QueryRequestedErrorRawMsg)
 	_ ServerMsg = new(QueryRequestedMsg)
 )
 
@@ -48,7 +48,7 @@ type (
 		Parameters revent.QueryRequestParameters
 	}
 
-	// QueryRequestedMsg is the msg received by the server asking to solve a query.
+	// QueryRequestedMsg is the msg received by the server asking to handle a query.
 	QueryRequestedMsg struct {
 		RequestID  revent.RequestID
 		QueryID    revent.QueryID
@@ -56,7 +56,7 @@ type (
 	}
 
 	// QueryResponseRawMsg is the raw response to a QueryRequest, lacking extra information.
-	// Struct not to be used directly.
+	// It is also used to send the response to the client.
 	QueryResponseRawMsg struct {
 		RequestID revent.RequestID
 		Response  []byte
@@ -68,20 +68,21 @@ type (
 		Response  O
 	}
 
-	QueryRequestErrorReason string
+	QueryRequestedErrorReason string
 
-	QueryRequestErrorRawMsg struct {
+	// QueryRequestedErrorRawMsg is the raw error response to a QueryRequest.
+	QueryRequestedErrorRawMsg struct {
 		RequestID revent.RequestID
-		Reason    QueryRequestErrorReason
+		Reason    QueryRequestedErrorReason
 	}
 
 	// QueryRequestedErrorMsg is the error response to a QueryRequest,
-	// built based on QueryRequestErrorRawMsg.
+	// built based on QueryRequestedErrorRawMsg.
 	//nolint:errname // keep consistency with Msg at the end
 	QueryRequestedErrorMsg struct {
 		RequestID revent.RequestID
 		QueryID   revent.QueryID
-		Reason    QueryRequestErrorReason
+		Reason    QueryRequestedErrorReason
 		Details   string
 	}
 )
@@ -110,7 +111,7 @@ func (q QueryResponseRawMsg) GetRequestID() revent.RequestID {
 	return q.RequestID
 }
 
-func (e QueryRequestErrorRawMsg) GetRequestID() revent.RequestID {
+func (e QueryRequestedErrorRawMsg) GetRequestID() revent.RequestID {
 	return e.RequestID
 }
 
@@ -124,8 +125,9 @@ func (q QueryRequestedMsg) GetRequestID() revent.RequestID {
 
 func (q QueryRequestMsg) clientMessage()            {}
 func (q QueryResponseRawMsg) clientMessage()        {}
+func (e QueryRequestedErrorRawMsg) clientMessage()  {}
 func (q QueryResponseRawMsg) serverMessage()        {}
-func (e QueryRequestErrorRawMsg) serverMessage()    {}
+func (e QueryRequestedErrorRawMsg) serverMessage()  {}
 func (e QueryRequestedErrorMsg) serverMessage()     {}
 func (q QueryRequestResponseMsg[O]) serverMessage() {}
 func (q QueryRequestedMsg) serverMessage()          {}

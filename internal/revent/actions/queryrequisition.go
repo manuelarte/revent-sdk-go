@@ -58,7 +58,7 @@ func (c *QueryRequisition[I, O]) Do(
 		}
 
 		switch msg.(type) {
-		case *messages.QueryResponseRawMsg, *messages.QueryRequestErrorRawMsg:
+		case *messages.QueryResponseRawMsg, *messages.QueryRequestedErrorRawMsg:
 			if identifiable, ok := msg.(messages.IdempotentMsg); ok {
 				return identifiable.GetRequestID().String() == params.RequestID.String()
 			}
@@ -106,7 +106,7 @@ func (c *QueryRequisition[I, O]) Do(
 					Response:  zero,
 				},
 			}, nil
-		case *messages.QueryRequestErrorRawMsg:
+		case *messages.QueryRequestedErrorRawMsg:
 			return &messages.QueryRequestResponseMsg[O]{
 				Err: &messages.QueryRequestedErrorMsg{
 					RequestID: payload.RequestID,
