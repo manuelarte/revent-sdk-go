@@ -70,6 +70,7 @@ func (qh *QueryHandling) Do(ctx context.Context, qhp QueryHandlingParams) (*Quer
 		if err != nil {
 			return nil, fmt.Errorf("failed to send query handling error: %w", err)
 		}
+
 		return &QueryHandlingResponse{
 			Err: msg,
 		}, nil
@@ -87,6 +88,7 @@ func (qh *QueryHandling) Do(ctx context.Context, qhp QueryHandlingParams) (*Quer
 		if errSending != nil {
 			return nil, fmt.Errorf("failed to send query handling error: %w", errSending)
 		}
+
 		return &QueryHandlingResponse{
 			Err: msg,
 		}, nil
