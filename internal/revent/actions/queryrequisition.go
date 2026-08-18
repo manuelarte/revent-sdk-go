@@ -8,15 +8,13 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/manuelarte/revent-sdk-go/internal/revent/messages"
-	"github.com/manuelarte/revent-sdk-go/logger"
 	"github.com/manuelarte/revent-sdk-go/revent"
 )
 
 type (
 	// QueryRequisition is the flow to send a QueryRequest, wait, and forward the QueryResponse.
 	QueryRequisition[I revent.QueryRequestParameters, O revent.QueryResponse] struct {
-		logger logger.ILogger
-		m      SendAndSubscribe
+		m SendAndSubscribe
 	}
 
 	QueryRequisitionParams[I revent.QueryRequestParameters, O revent.QueryResponse] struct {
@@ -32,12 +30,10 @@ type (
 )
 
 func NewQueryRequisition[I revent.QueryRequestParameters, O revent.QueryResponse](
-	logger logger.ILogger,
 	m SendAndSubscribe,
 ) *QueryRequisition[I, O] {
 	return &QueryRequisition[I, O]{
-		logger: logger,
-		m:      m,
+		m: m,
 	}
 }
 

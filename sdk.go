@@ -138,7 +138,7 @@ func QueryRequest[I revent.QueryRequestParameters, O revent.QueryResponse](
 		s.txRx,
 		s,
 	}
-	qr := actions.NewQueryRequisition[I, O](s.logger, x)
+	qr := actions.NewQueryRequisition[I, O](x)
 
 	output, err := qr.Do(ctx, actions.QueryRequisitionParams[I, O]{
 		RequestID: requestID,
@@ -169,7 +169,7 @@ func registerClient(s *ServerManager) func(ctx context.Context) error {
 			s.txRx,
 			s,
 		}
-		cr := actions.NewClientRegistration(s.logger, x)
+		cr := actions.NewClientRegistration(x)
 
 		waitCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 		defer cancel()

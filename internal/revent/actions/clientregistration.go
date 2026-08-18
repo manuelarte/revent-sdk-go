@@ -7,14 +7,12 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/manuelarte/revent-sdk-go/internal/revent/messages"
-	"github.com/manuelarte/revent-sdk-go/logger"
 	"github.com/manuelarte/revent-sdk-go/revent"
 )
 
 type (
 	ClientRegistration struct {
-		logger logger.ILogger
-		m      SendAndSubscribe
+		m SendAndSubscribe
 	}
 
 	ClientRegistrationParams struct {
@@ -24,12 +22,10 @@ type (
 )
 
 func NewClientRegistration(
-	logger logger.ILogger,
 	m SendAndSubscribe,
 ) *ClientRegistration {
 	return &ClientRegistration{
-		logger: logger,
-		m:      m,
+		m: m,
 	}
 }
 
