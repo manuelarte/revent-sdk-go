@@ -7,6 +7,7 @@ lint: fmt
 	./custom-gcl run --fix ./...
 
 fmt:
+	buf generate
 	golangci-lint fmt
 
 test:

@@ -38,6 +38,7 @@ type ClientToServerMessage struct {
 	//	*ClientToServerMessage_RegisterClient
 	//	*ClientToServerMessage_QueryRequest
 	//	*ClientToServerMessage_QueryResponse
+	//	*ClientToServerMessage_QueryHandlingError
 	//	*ClientToServerMessage_RegisterSourceEvent
 	//	*ClientToServerMessage_Heartbeat
 	Payload       isClientToServerMessage_Payload `protobuf_oneof:"payload"`
@@ -109,6 +110,15 @@ func (x *ClientToServerMessage) GetQueryResponse() *QueryResponse {
 	return nil
 }
 
+func (x *ClientToServerMessage) GetQueryHandlingError() *QueryHandlingError {
+	if x != nil {
+		if x, ok := x.Payload.(*ClientToServerMessage_QueryHandlingError); ok {
+			return x.QueryHandlingError
+		}
+	}
+	return nil
+}
+
 func (x *ClientToServerMessage) GetRegisterSourceEvent() *RegisterSourceEvent {
 	if x != nil {
 		if x, ok := x.Payload.(*ClientToServerMessage_RegisterSourceEvent); ok {
@@ -146,14 +156,19 @@ type ClientToServerMessage_QueryResponse struct {
 	QueryResponse *QueryResponse `protobuf:"bytes,3,opt,name=query_response,json=queryResponse,proto3,oneof"`
 }
 
+type ClientToServerMessage_QueryHandlingError struct {
+	// QueryHandlingError indicates that there was a problem handling the query requested.
+	QueryHandlingError *QueryHandlingError `protobuf:"bytes,4,opt,name=query_handling_error,json=queryHandlingError,proto3,oneof"`
+}
+
 type ClientToServerMessage_RegisterSourceEvent struct {
 	// Indicates that an event happened.
-	RegisterSourceEvent *RegisterSourceEvent `protobuf:"bytes,4,opt,name=register_source_event,json=registerSourceEvent,proto3,oneof"`
+	RegisterSourceEvent *RegisterSourceEvent `protobuf:"bytes,5,opt,name=register_source_event,json=registerSourceEvent,proto3,oneof"`
 }
 
 type ClientToServerMessage_Heartbeat struct {
 	// Indicates that the client is still connected.
-	Heartbeat *Heartbeat `protobuf:"bytes,5,opt,name=heartbeat,proto3,oneof"`
+	Heartbeat *Heartbeat `protobuf:"bytes,6,opt,name=heartbeat,proto3,oneof"`
 }
 
 func (*ClientToServerMessage_RegisterClient) isClientToServerMessage_Payload() {}
@@ -161,6 +176,8 @@ func (*ClientToServerMessage_RegisterClient) isClientToServerMessage_Payload() {
 func (*ClientToServerMessage_QueryRequest) isClientToServerMessage_Payload() {}
 
 func (*ClientToServerMessage_QueryResponse) isClientToServerMessage_Payload() {}
+
+func (*ClientToServerMessage_QueryHandlingError) isClientToServerMessage_Payload() {}
 
 func (*ClientToServerMessage_RegisterSourceEvent) isClientToServerMessage_Payload() {}
 
@@ -555,13 +572,14 @@ var File_revent_v1_control_proto protoreflect.FileDescriptor
 
 const file_revent_v1_control_proto_rawDesc = "" +
 	"\n" +
-	"\x17revent/v1/control.proto\x12\trevent.v1\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1erevent/v1/query_messages.proto\x1a\x1erevent/v1/event_messages.proto\"\xf7\x02\n" +
+	"\x17revent/v1/control.proto\x12\trevent.v1\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1erevent/v1/query_messages.proto\x1a\x1erevent/v1/event_messages.proto\"\xca\x03\n" +
 	"\x15ClientToServerMessage\x12D\n" +
 	"\x0fregister_client\x18\x01 \x01(\v2\x19.revent.v1.RegisterClientH\x00R\x0eregisterClient\x12>\n" +
 	"\rquery_request\x18\x02 \x01(\v2\x17.revent.v1.QueryRequestH\x00R\fqueryRequest\x12A\n" +
-	"\x0equery_response\x18\x03 \x01(\v2\x18.revent.v1.QueryResponseH\x00R\rqueryResponse\x12T\n" +
-	"\x15register_source_event\x18\x04 \x01(\v2\x1e.revent.v1.RegisterSourceEventH\x00R\x13registerSourceEvent\x124\n" +
-	"\theartbeat\x18\x05 \x01(\v2\x14.revent.v1.HeartbeatH\x00R\theartbeatB\t\n" +
+	"\x0equery_response\x18\x03 \x01(\v2\x18.revent.v1.QueryResponseH\x00R\rqueryResponse\x12Q\n" +
+	"\x14query_handling_error\x18\x04 \x01(\v2\x1d.revent.v1.QueryHandlingErrorH\x00R\x12queryHandlingError\x12T\n" +
+	"\x15register_source_event\x18\x05 \x01(\v2\x1e.revent.v1.RegisterSourceEventH\x00R\x13registerSourceEvent\x124\n" +
+	"\theartbeat\x18\x06 \x01(\v2\x14.revent.v1.HeartbeatH\x00R\theartbeatB\t\n" +
 	"\apayload\"^\n" +
 	"\x0eRegisterClient\x12 \n" +
 	"\tclient_id\x18\x01 \x01(\tB\x03\xe0A\x02R\bclientId\x12*\n" +
@@ -609,34 +627,36 @@ var file_revent_v1_control_proto_goTypes = []any{
 	(*ClientRegistrationError)(nil), // 5: revent.v1.ClientRegistrationError
 	(*QueryRequest)(nil),            // 6: revent.v1.QueryRequest
 	(*QueryResponse)(nil),           // 7: revent.v1.QueryResponse
-	(*RegisterSourceEvent)(nil),     // 8: revent.v1.RegisterSourceEvent
-	(*QueryRequested)(nil),          // 9: revent.v1.QueryRequested
-	(*QueryResponded)(nil),          // 10: revent.v1.QueryResponded
-	(*QueryRequestedError)(nil),     // 11: revent.v1.QueryRequestedError
-	(*SourceEventRegistered)(nil),   // 12: revent.v1.SourceEventRegistered
-	(*SourceEvent)(nil),             // 13: revent.v1.SourceEvent
+	(*QueryHandlingError)(nil),      // 8: revent.v1.QueryHandlingError
+	(*RegisterSourceEvent)(nil),     // 9: revent.v1.RegisterSourceEvent
+	(*QueryRequested)(nil),          // 10: revent.v1.QueryRequested
+	(*QueryResponded)(nil),          // 11: revent.v1.QueryResponded
+	(*QueryRequestedError)(nil),     // 12: revent.v1.QueryRequestedError
+	(*SourceEventRegistered)(nil),   // 13: revent.v1.SourceEventRegistered
+	(*SourceEvent)(nil),             // 14: revent.v1.SourceEvent
 }
 var file_revent_v1_control_proto_depIdxs = []int32{
 	1,  // 0: revent.v1.ClientToServerMessage.register_client:type_name -> revent.v1.RegisterClient
 	6,  // 1: revent.v1.ClientToServerMessage.query_request:type_name -> revent.v1.QueryRequest
 	7,  // 2: revent.v1.ClientToServerMessage.query_response:type_name -> revent.v1.QueryResponse
-	8,  // 3: revent.v1.ClientToServerMessage.register_source_event:type_name -> revent.v1.RegisterSourceEvent
-	2,  // 4: revent.v1.ClientToServerMessage.heartbeat:type_name -> revent.v1.Heartbeat
-	4,  // 5: revent.v1.ServerToClientMessage.client_registered:type_name -> revent.v1.ClientRegistered
-	9,  // 6: revent.v1.ServerToClientMessage.query_requested:type_name -> revent.v1.QueryRequested
-	10, // 7: revent.v1.ServerToClientMessage.query_responded:type_name -> revent.v1.QueryResponded
-	2,  // 8: revent.v1.ServerToClientMessage.heartbeat:type_name -> revent.v1.Heartbeat
-	5,  // 9: revent.v1.ServerToClientMessage.client_registration_error:type_name -> revent.v1.ClientRegistrationError
-	11, // 10: revent.v1.ServerToClientMessage.query_requested_error:type_name -> revent.v1.QueryRequestedError
-	12, // 11: revent.v1.ServerToClientMessage.source_event_registered:type_name -> revent.v1.SourceEventRegistered
-	13, // 12: revent.v1.ServerToClientMessage.source_event:type_name -> revent.v1.SourceEvent
-	0,  // 13: revent.v1.Control.OpenSession:input_type -> revent.v1.ClientToServerMessage
-	3,  // 14: revent.v1.Control.OpenSession:output_type -> revent.v1.ServerToClientMessage
-	14, // [14:15] is the sub-list for method output_type
-	13, // [13:14] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	8,  // 3: revent.v1.ClientToServerMessage.query_handling_error:type_name -> revent.v1.QueryHandlingError
+	9,  // 4: revent.v1.ClientToServerMessage.register_source_event:type_name -> revent.v1.RegisterSourceEvent
+	2,  // 5: revent.v1.ClientToServerMessage.heartbeat:type_name -> revent.v1.Heartbeat
+	4,  // 6: revent.v1.ServerToClientMessage.client_registered:type_name -> revent.v1.ClientRegistered
+	10, // 7: revent.v1.ServerToClientMessage.query_requested:type_name -> revent.v1.QueryRequested
+	11, // 8: revent.v1.ServerToClientMessage.query_responded:type_name -> revent.v1.QueryResponded
+	2,  // 9: revent.v1.ServerToClientMessage.heartbeat:type_name -> revent.v1.Heartbeat
+	5,  // 10: revent.v1.ServerToClientMessage.client_registration_error:type_name -> revent.v1.ClientRegistrationError
+	12, // 11: revent.v1.ServerToClientMessage.query_requested_error:type_name -> revent.v1.QueryRequestedError
+	13, // 12: revent.v1.ServerToClientMessage.source_event_registered:type_name -> revent.v1.SourceEventRegistered
+	14, // 13: revent.v1.ServerToClientMessage.source_event:type_name -> revent.v1.SourceEvent
+	0,  // 14: revent.v1.Control.OpenSession:input_type -> revent.v1.ClientToServerMessage
+	3,  // 15: revent.v1.Control.OpenSession:output_type -> revent.v1.ServerToClientMessage
+	15, // [15:16] is the sub-list for method output_type
+	14, // [14:15] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_revent_v1_control_proto_init() }
@@ -650,6 +670,7 @@ func file_revent_v1_control_proto_init() {
 		(*ClientToServerMessage_RegisterClient)(nil),
 		(*ClientToServerMessage_QueryRequest)(nil),
 		(*ClientToServerMessage_QueryResponse)(nil),
+		(*ClientToServerMessage_QueryHandlingError)(nil),
 		(*ClientToServerMessage_RegisterSourceEvent)(nil),
 		(*ClientToServerMessage_Heartbeat)(nil),
 	}
