@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -17,6 +18,11 @@ import (
 
 var _ internal.SubscriptionManager = new(ServerManager)
 
+const (
+	maxConcurrentQueryHandling = 64
+	queryHandlingTimeout       = 10 * time.Second
+)
+
 type (
 	// ServerManager manages a persistent gRPC connection with automatic reconnection
 	//
@@ -29,6 +35,7 @@ type (
 		txRx txrx.TxRx
 
 		queryHandling *actions.QueryHandling
+		querySlots    chan struct{}
 
 		muSubscribers   sync.RWMutex
 		subscribers     map[uuid.UUID]serverMessageSubscription
@@ -55,6 +62,7 @@ func NewState(cfg Config) (*ServerManager, error) {
 		subscribers:   make(map[uuid.UUID]serverMessageSubscription),
 		queryHandlers: make(map[revent.QueryID]actions.QueryHandler),
 		stateChan:     make(chan txrx.ConnectionState, 1),
+		querySlots:    make(chan struct{}, maxConcurrentQueryHandling),
 	}, nil
 }
 
@@ -145,7 +153,25 @@ func (s *ServerManager) publishStateChange(state txrx.ConnectionState) {
 
 func (s *ServerManager) handleIncomingMessage(ctx context.Context, msg messages.ServerMsg) {
 	if queryRequested, ok := msg.(*messages.QueryRequestedMsg); ok && s.queryHandling != nil {
-		go s.queryHandling.Do(ctx, actions.QueryHandlingParams{Msg: queryRequested})
+		select {
+		case s.querySlots <- struct{}{}:
+			go func() {
+				defer func() {
+					<-s.querySlots
+				}()
+
+				queryCtx, cancel := context.WithTimeout(ctx, queryHandlingTimeout)
+				defer cancel()
+
+				s.queryHandling.Do(queryCtx, actions.QueryHandlingParams{Msg: queryRequested})
+			}()
+		default:
+			s.logger.Warn(
+				"dropping query request due to saturated query handling pool",
+				"queryID", queryRequested.QueryID,
+				"requestID", queryRequested.RequestID,
+			)
+		}
 	}
 }
 
