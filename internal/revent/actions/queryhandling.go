@@ -10,10 +10,6 @@ import (
 )
 
 type (
-	UnexpectedError struct {
-		Reason string
-	}
-
 	QueryHandler func(ctx context.Context, params map[string]string) ([]byte, error)
 
 	QueryHandling struct {
@@ -25,11 +21,12 @@ type (
 	QueryHandlingParams struct {
 		Msg *messages.QueryRequestedMsg
 	}
-)
 
-func (e UnexpectedError) Error() string {
-	return fmt.Sprintf("unexpected error: %s", e.Reason)
-}
+	QueryHandlingResponse struct {
+		Msg *messages.QueryResponseRawMsg
+		Err *messages.QueryHandlingErrorMsg
+	}
+)
 
 func NewQueryHandling(
 	logger logger.ILogger,
@@ -43,47 +40,67 @@ func NewQueryHandling(
 	}
 }
 
-func (qh *QueryHandling) Do(ctx context.Context, qhp QueryHandlingParams) error {
+func (qh *QueryHandling) Do(ctx context.Context, qhp QueryHandlingParams) (*QueryHandlingResponse, error) {
 	if qhp.Msg == nil || qh.getHandler == nil || qh.sender == nil {
-		return UnexpectedError{
-			Reason: "nil message, handler, or sender",
+		msg := &messages.QueryHandlingErrorMsg{
+			RequestID: qhp.Msg.RequestID,
+			Reason:    "Unknown",
+			Details:   "nil message, handler, or sender",
 		}
+
+		err := qh.sender.Send(msg)
+		if err != nil {
+			return nil, fmt.Errorf("failed to send query handling error: %w", err)
+		}
+
+		return &QueryHandlingResponse{
+			Err: msg,
+		}, nil
 	}
 
 	handler, ok := qh.getHandler(qhp.Msg.QueryID)
 	if !ok {
-		// TODO: inform the client
-		return UnexpectedError{
-			Reason: fmt.Sprintf("no handler registered for query: queryID=%s, requestID=%s", qhp.Msg.QueryID, qhp.Msg.RequestID),
+		msg := &messages.QueryHandlingErrorMsg{
+			RequestID: qhp.Msg.RequestID,
+			Reason:    "Unknown",
+			Details:   "handler not found",
 		}
+
+		err := qh.sender.Send(msg)
+		if err != nil {
+			return nil, fmt.Errorf("failed to send query handling error: %w", err)
+		}
+		return &QueryHandlingResponse{
+			Err: msg,
+		}, nil
 	}
 
 	responseBytes, err := handler(ctx, qhp.Msg.Parameters)
 	if err != nil {
-		qh.logger.Error("failed to handle query", "queryID", qhp.Msg.QueryID, "requestID", qhp.Msg.RequestID, "error", err)
-
-		// TODO: inform the client. This is missing in R-Event, it's not able to handle Client sending
-		// an error response.
-		// qh.sender.Send(&messages.QueryRequestedErrorRawMsg{
-		//	RequestID: qhp.Msg.RequestID,
-		//	Reason:    ,
-		// })
-		return UnexpectedError{
-			Reason: fmt.Sprintf(
-				"failed to handle query: queryID=%s, requestID=%s, error=%v",
-				qhp.Msg.QueryID,
-				qhp.Msg.RequestID,
-				err,
-			),
+		msg := &messages.QueryHandlingErrorMsg{
+			RequestID: qhp.Msg.RequestID,
+			Reason:    "ErrorHandling",
+			Details:   err.Error(),
 		}
+
+		errSending := qh.sender.Send(msg)
+		if errSending != nil {
+			return nil, fmt.Errorf("failed to send query handling error: %w", errSending)
+		}
+		return &QueryHandlingResponse{
+			Err: msg,
+		}, nil
 	}
 
-	if errSend := qh.sender.Send(&messages.QueryResponseRawMsg{
+	msg := &messages.QueryResponseRawMsg{
 		RequestID: qhp.Msg.RequestID,
 		Response:  responseBytes,
-	}); errSend != nil {
-		return fmt.Errorf("failed to send query response: %w", errSend)
+	}
+	if errSend := qh.sender.Send(msg); errSend != nil {
+		return nil, fmt.Errorf("failed to send query response: %w", errSend)
 	}
 
-	return nil
+	return &QueryHandlingResponse{
+		Msg: msg,
+	}, nil
 }

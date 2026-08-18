@@ -55,6 +55,12 @@ type (
 		Response  O
 	}
 
+	QueryHandlingErrorMsg struct {
+		RequestID revent.RequestID
+		Reason    string
+		Details   string
+	}
+
 	QueryRequestedErrorReason string
 
 	// QueryRequestedErrorRawMsg is the raw error response to a QueryRequest.
@@ -101,6 +107,7 @@ func (q QueryRequestedMsg) GetRequestID() revent.RequestID {
 func (q QueryRequestMsg) clientMessage()           {}
 func (q QueryResponseRawMsg) clientMessage()       {}
 func (e QueryRequestedErrorRawMsg) clientMessage() {}
+func (e QueryHandlingErrorMsg) clientMessage()     {}
 func (q QueryResponseRawMsg) serverMessage()       {}
 func (e QueryRequestedErrorRawMsg) serverMessage() {}
 func (e QueryRequestedErrorMsg) serverMessage()    {}
