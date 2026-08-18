@@ -93,9 +93,9 @@ func (s *serverInfo) restartServer(ctx context.Context) error {
 	// When a container is restarted via the testcontainers API, the original
 	// waiting strategy used at creation is not automatically re-run, so we
 	// proactively probe the bound host port until it becomes available.
-	deadline := time.Now().Add(15 * time.Second)
+	deadline := time.Now().Add(30 * time.Second)
 
-	addr := net.JoinHostPort("localhost", strconv.Itoa(s.grpcPort))
+	addr := net.JoinHostPort(s.host, strconv.Itoa(s.grpcPort))
 
 	for time.Now().Before(deadline) {
 		d := net.Dialer{Timeout: 500 * time.Millisecond}

@@ -7,6 +7,7 @@ import (
 
 	"github.com/cucumber/godog"
 	"github.com/google/uuid"
+	"github.com/testcontainers/testcontainers-go"
 	grpcbackoff "google.golang.org/grpc/backoff"
 
 	reventsdkgo "github.com/manuelarte/revent-sdk-go"
@@ -20,6 +21,8 @@ func TestFeatures(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping BDD integration tests in short mode")
 	}
+
+	testcontainers.SkipIfProviderIsNotHealthy(t)
 
 	testSuite := godog.TestSuite{
 		Name:                "revent-sdk-go-bdd",

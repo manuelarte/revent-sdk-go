@@ -157,24 +157,29 @@ func (s *scenarioState) iCancelTheSDKSessionContext(ctx context.Context) (contex
 }
 
 func (s *scenarioState) theClientShouldBeRegisteredByTheServer(ctx context.Context) (context.Context, error) {
-	select {
-	case msg := <-s.registrationCh:
-		registered, ok := msg.(*messages.ClientRegistrationResponseMsg)
-		if !ok {
-			return ctx, fmt.Errorf("expected ClientRegisteredMessage, got %T", msg)
-		}
+	timer := time.NewTimer(8 * time.Second)
+	defer timer.Stop()
 
-		if registered.ClientID().String() != s.cfg.ClientID.String() {
-			return ctx, fmt.Errorf(
-				"unexpected client id: got %q want %q",
-				registered.ClientID().String(),
-				s.cfg.ClientID.String(),
-			)
-		}
+	for {
+		select {
+		case msg := <-s.registrationCh:
+			registered, ok := msg.(*messages.ClientRegistrationResponseMsg)
+			if !ok {
+				continue
+			}
 
-		return ctx, nil
-	case <-time.After(8 * time.Second):
-		return ctx, errors.New("timeout waiting for registration confirmation")
+			if registered.ClientID().String() != s.cfg.ClientID.String() {
+				return ctx, fmt.Errorf(
+					"unexpected client id: got %q want %q",
+					registered.ClientID().String(),
+					s.cfg.ClientID.String(),
+				)
+			}
+
+			return ctx, nil
+		case <-timer.C:
+			return ctx, errors.New("timeout waiting for registration confirmation")
+		}
 	}
 }
 
