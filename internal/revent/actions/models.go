@@ -10,10 +10,6 @@ import (
 var _ error = new(UnexpectedMsgError)
 
 type (
-	/* TODO: Rethink this action workflow. Maybe it should return the output message,
-	 *	and the sender is the one that sends the message
-	 */
-
 	// Sender is the interface that wraps the Send method.
 	Sender interface {
 		Send(msg messages.ClientMsg) error

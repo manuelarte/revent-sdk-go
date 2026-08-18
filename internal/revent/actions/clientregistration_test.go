@@ -46,10 +46,8 @@ func (f *fakeRegistrationManager) Unsubscribe(uuid.UUID) error {
 
 func TestClientRegistrationDoSuccess(t *testing.T) {
 	m := &fakeRegistrationManager{
-		response: &messages.ClientRegistrationResponseMsg{
-			Msg: &messages.ClientRegisteredMsg{
-				ClientID: "my-client",
-			},
+		response: &messages.ClientRegisteredMsg{
+			ClientID: "my-client",
 		},
 	}
 	registration := NewClientRegistration(m)
@@ -73,11 +71,9 @@ func TestClientRegistrationDoSuccess(t *testing.T) {
 
 func TestClientRegistrationDoServerError(t *testing.T) {
 	m := &fakeRegistrationManager{
-		response: &messages.ClientRegistrationResponseMsg{
-			Err: &messages.ClientRegistrationErrorMsg{
-				ClientID: "my-client",
-				Reason:   "duplicate client id",
-			},
+		response: &messages.ClientRegistrationErrorMsg{
+			ClientID: "my-client",
+			Reason:   "duplicate client id",
 		},
 	}
 	registration := NewClientRegistration(m)
@@ -127,10 +123,8 @@ func TestClientRegistrationDoTimeout(t *testing.T) {
 
 func TestClientRegistrationDoTimeoutWhenMessageDoesNotMatchPredicate(t *testing.T) {
 	m := &fakeRegistrationManager{
-		response: &messages.ClientRegistrationResponseMsg{
-			Msg: &messages.ClientRegisteredMsg{
-				ClientID: "other-client",
-			},
+		response: &messages.ClientRegisteredMsg{
+			ClientID: "other-client",
 		},
 	}
 	registration := NewClientRegistration(m)

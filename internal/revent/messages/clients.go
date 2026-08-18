@@ -8,7 +8,8 @@ import (
 
 var (
 	_ ClientMsg = new(ClientRegistrationMsg)
-	_ ServerMsg = new(ClientRegistrationResponseMsg)
+	_ ServerMsg = new(ClientRegisteredMsg)
+	_ ServerMsg = new(ClientRegistrationErrorMsg)
 )
 
 var _ error = new(ClientRegistrationErrorMsg)
@@ -19,33 +20,18 @@ type (
 		QueryHandlers []revent.QueryID
 	}
 
-	ClientRegistrationResponseMsg struct {
-		Msg *ClientRegisteredMsg
-		Err *ClientRegistrationErrorMsg
-	}
-
 	ClientRegisteredMsg struct {
 		ClientID revent.ClientID
 	}
 
+	// ClientRegistrationResponseMsg r-event message indicating that
+	// the client could not be registered.
 	//nolint:errname // keep consistency with Msg at the end
 	ClientRegistrationErrorMsg struct {
 		ClientID revent.ClientID
 		Reason   string
 	}
 )
-
-func (c ClientRegistrationResponseMsg) ClientID() revent.ClientID {
-	if c.Msg != nil {
-		return c.Msg.ClientID
-	}
-
-	if c.Err != nil {
-		return c.Err.ClientID
-	}
-
-	return ""
-}
 
 func (e ClientRegistrationErrorMsg) Error() string {
 	if e.Reason == "" {
@@ -55,5 +41,6 @@ func (e ClientRegistrationErrorMsg) Error() string {
 	return fmt.Sprintf("client %q registration rejected: %s", e.ClientID, e.Reason)
 }
 
-func (c ClientRegistrationMsg) clientMessage()         {}
-func (c ClientRegistrationResponseMsg) serverMessage() {}
+func (c ClientRegistrationMsg) clientMessage()      {}
+func (c ClientRegisteredMsg) serverMessage()        {}
+func (c ClientRegistrationErrorMsg) serverMessage() {}
