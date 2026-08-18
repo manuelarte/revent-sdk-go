@@ -64,10 +64,10 @@ func (qh *QueryHandling) Do(ctx context.Context, qhp QueryHandlingParams) error 
 
 		// TODO: inform the client. This is missing in R-Event, it's not able to handle Client sending
 		// an error response.
-		//qh.sender.Send(&messages.QueryRequestedErrorRawMsg{
+		// qh.sender.Send(&messages.QueryRequestedErrorRawMsg{
 		//	RequestID: qhp.Msg.RequestID,
 		//	Reason:    ,
-		//})
+		// })
 		return UnexpectedError{
 			Reason: fmt.Sprintf(
 				"failed to handle query: queryID=%s, requestID=%s, error=%v",

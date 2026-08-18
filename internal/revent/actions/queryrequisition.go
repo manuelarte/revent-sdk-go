@@ -23,9 +23,13 @@ type (
 		Params    I
 	}
 
-	QueryRequisitionResponse[O revent.QueryResponse] struct {
-		Response O
-		Err      *messages.QueryRequestedErrorMsg
+	// QueryRequestResponseMsg is the response to a QueryRequest.
+	// It can be either a QueryResponseMsg or a QueryRequestedErrorMsg.
+	// Where the Msg is the response to the QueryRequest, and the message
+	// containing the error why the query could not be processed.
+	QueryRequestResponseMsg[O revent.QueryResponse] struct {
+		Msg *messages.QueryResponseMsg[O]
+		Err *messages.QueryRequestedErrorMsg
 	}
 )
 
@@ -49,7 +53,7 @@ func NewQueryRequisition[I revent.QueryRequestParameters, O revent.QueryResponse
 func (c *QueryRequisition[I, O]) Do(
 	ctx context.Context,
 	params QueryRequisitionParams[I, O],
-) (*messages.QueryRequestResponseMsg[O], error) {
+) (*QueryRequestResponseMsg[O], error) {
 	queryRequestEvents := make(chan messages.ServerMsg, 1)
 
 	c.m.Subscribe(uuid.UUID(params.RequestID), func(msg messages.ServerMsg) bool {
@@ -90,7 +94,7 @@ func (c *QueryRequisition[I, O]) Do(
 
 			errUnmarshal := json.Unmarshal(payload.Response, &zero)
 			if errUnmarshal != nil {
-				return &messages.QueryRequestResponseMsg[O]{
+				return &QueryRequestResponseMsg[O]{
 					Err: &messages.QueryRequestedErrorMsg{
 						RequestID: payload.RequestID,
 						QueryID:   revent.QueryID(params.QueryID),
@@ -100,14 +104,14 @@ func (c *QueryRequisition[I, O]) Do(
 				}, nil
 			}
 
-			return &messages.QueryRequestResponseMsg[O]{
+			return &QueryRequestResponseMsg[O]{
 				Msg: &messages.QueryResponseMsg[O]{
 					RequestID: payload.RequestID,
 					Response:  zero,
 				},
 			}, nil
 		case *messages.QueryRequestedErrorRawMsg:
-			return &messages.QueryRequestResponseMsg[O]{
+			return &QueryRequestResponseMsg[O]{
 				Err: &messages.QueryRequestedErrorMsg{
 					RequestID: payload.RequestID,
 					QueryID:   revent.QueryID(params.QueryID),
@@ -121,4 +125,16 @@ func (c *QueryRequisition[I, O]) Do(
 			}
 		}
 	}
+}
+
+func (q QueryRequestResponseMsg[O]) GetRequestID() revent.RequestID {
+	if q.Msg != nil {
+		return q.Msg.RequestID
+	}
+
+	if q.Err != nil {
+		return q.Err.RequestID
+	}
+
+	return revent.RequestID(uuid.Nil)
 }

@@ -163,15 +163,15 @@ func (s *scenarioState) theClientShouldBeRegisteredByTheServer(ctx context.Conte
 	for {
 		select {
 		case msg := <-s.registrationCh:
-			registered, ok := msg.(*messages.ClientRegistrationResponseMsg)
+			registered, ok := msg.(*messages.ClientRegisteredMsg)
 			if !ok {
 				continue
 			}
 
-			if registered.ClientID().String() != s.cfg.ClientID.String() {
+			if registered.ClientID.String() != s.cfg.ClientID.String() {
 				return ctx, fmt.Errorf(
 					"unexpected client id: got %q want %q",
-					registered.ClientID().String(),
+					registered.ClientID.String(),
 					s.cfg.ClientID.String(),
 				)
 			}

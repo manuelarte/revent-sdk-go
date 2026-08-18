@@ -15,16 +15,18 @@ var (
 var _ error = new(ClientRegistrationErrorMsg)
 
 type (
+	// ClientRegistrationMsg client event indicating that the client wants to register.
 	ClientRegistrationMsg struct {
 		ClientID      revent.ClientID
 		QueryHandlers []revent.QueryID
 	}
 
+	// ClientRegisteredMsg r-event message indicating that the client has been successfully registered.
 	ClientRegisteredMsg struct {
 		ClientID revent.ClientID
 	}
 
-	// ClientRegistrationResponseMsg r-event message indicating that
+	// ClientRegistrationErrorMsg r-event message indicating that
 	// the client could not be registered.
 	//nolint:errname // keep consistency with Msg at the end
 	ClientRegistrationErrorMsg struct {

@@ -90,7 +90,6 @@ func (c *ClientRegistration) Do(
 			return &ClientRegistrationResponse{
 				Err: payload,
 			}, nil
-
 		}
 
 		return nil, UnexpectedMsgError{

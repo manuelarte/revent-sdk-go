@@ -3,8 +3,6 @@ package messages
 import (
 	"fmt"
 
-	"github.com/google/uuid"
-
 	"github.com/manuelarte/revent-sdk-go/revent"
 )
 
@@ -18,7 +16,6 @@ const (
 var (
 	_ ClientMsg = new(QueryRequestMsg)
 	_ ClientMsg = new(QueryResponseRawMsg)
-	_ ServerMsg = new(QueryRequestResponseMsg[revent.QueryResponse])
 	_ ServerMsg = new(QueryRequestedErrorRawMsg)
 	_ ServerMsg = new(QueryRequestedMsg)
 )
@@ -26,20 +23,10 @@ var (
 var (
 	_ error         = new(QueryRequestedErrorMsg)
 	_ IdempotentMsg = new(QueryRequestMsg)
-	_ IdempotentMsg = new(QueryRequestResponseMsg[revent.QueryResponse])
 	_ IdempotentMsg = new(QueryRequestedMsg)
 )
 
 type (
-	// QueryRequestResponseMsg is the response to a QueryRequest.
-	// It can be either a QueryResponseMsg or a QueryRequestedErrorMsg.
-	// Where the Msg is the response to the QueryRequest, and the message
-	// containing the error why the query could not be processed.
-	QueryRequestResponseMsg[O revent.QueryResponse] struct {
-		Msg *QueryResponseMsg[O]
-		Err *QueryRequestedErrorMsg
-	}
-
 	// QueryRequestMsg is the request to a Query.
 	// It contains the request ID, the query ID, and the parameters.
 	QueryRequestMsg struct {
@@ -87,18 +74,6 @@ type (
 	}
 )
 
-func (q QueryRequestResponseMsg[O]) GetRequestID() revent.RequestID {
-	if q.Msg != nil {
-		return q.Msg.RequestID
-	}
-
-	if q.Err != nil {
-		return q.Err.RequestID
-	}
-
-	return revent.RequestID(uuid.Nil)
-}
-
 func (e QueryRequestedErrorMsg) Error() string {
 	return fmt.Sprintf("query %q response error: %q", e.QueryID, e.Reason)
 }
@@ -123,11 +98,10 @@ func (q QueryRequestedMsg) GetRequestID() revent.RequestID {
 	return q.RequestID
 }
 
-func (q QueryRequestMsg) clientMessage()            {}
-func (q QueryResponseRawMsg) clientMessage()        {}
-func (e QueryRequestedErrorRawMsg) clientMessage()  {}
-func (q QueryResponseRawMsg) serverMessage()        {}
-func (e QueryRequestedErrorRawMsg) serverMessage()  {}
-func (e QueryRequestedErrorMsg) serverMessage()     {}
-func (q QueryRequestResponseMsg[O]) serverMessage() {}
-func (q QueryRequestedMsg) serverMessage()          {}
+func (q QueryRequestMsg) clientMessage()           {}
+func (q QueryResponseRawMsg) clientMessage()       {}
+func (e QueryRequestedErrorRawMsg) clientMessage() {}
+func (q QueryResponseRawMsg) serverMessage()       {}
+func (e QueryRequestedErrorRawMsg) serverMessage() {}
+func (e QueryRequestedErrorMsg) serverMessage()    {}
+func (q QueryRequestedMsg) serverMessage()         {}
