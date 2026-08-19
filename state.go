@@ -176,7 +176,11 @@ func (s *ServerManager) handleIncomingMessage(ctx context.Context, msg messages.
 					return
 				}
 
-				s.logger.Info("query request handled", "requestID", output.Msg.RequestID)
+				s.logger.Info(
+					"query request handled",
+					"requestID", output.Msg.RequestID,
+					"queryID", queryRequested.QueryID,
+				)
 			}()
 		default:
 			s.logger.Warn(

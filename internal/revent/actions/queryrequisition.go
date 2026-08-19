@@ -23,13 +23,28 @@ type (
 		Params    I
 	}
 
-	// QueryRequestResponseMsg is the response to a QueryRequest.
-	// It can be either a QueryResponseMsg or a QueryRequestedErrorMsg.
-	// Where the Msg is the response to the QueryRequest, and the message
+	// QueryResponse is the response to a QueryRequest, built based on messages.QueryResponseRawMsg.
+	QueryResponse[O revent.QueryResponse] struct {
+		RequestID revent.RequestID
+		Response  O
+	}
+
+	// QueryRequestedError is the error response to a QueryRequest,
+	// built based on messages.QueryRequestedErrorRawMsg.
+	QueryRequestedError struct {
+		RequestID revent.RequestID
+		QueryID   revent.QueryID
+		Reason    messages.QueryRequestedErrorReason
+		Details   string
+	}
+
+	// QueryRequestResponse is the response to a QueryRequest.
+	// It can be either a QueryResponse or a QueryRequestedErrorMsg.
+	// Where Msg is the response to the QueryRequest, and Err is the message
 	// containing the error why the query could not be processed.
-	QueryRequestResponseMsg[O revent.QueryResponse] struct {
-		Msg *messages.QueryResponseMsg[O]
-		Err *messages.QueryRequestedErrorMsg
+	QueryRequestResponse[O revent.QueryResponse] struct {
+		Msg *QueryResponse[O]
+		Err *QueryRequestedError
 	}
 )
 
@@ -53,7 +68,7 @@ func NewQueryRequisition[I revent.QueryRequestParameters, O revent.QueryResponse
 func (c *QueryRequisition[I, O]) Do(
 	ctx context.Context,
 	params QueryRequisitionParams[I, O],
-) (*QueryRequestResponseMsg[O], error) {
+) (*QueryRequestResponse[O], error) {
 	queryRequestEvents := make(chan messages.ServerMsg, 1)
 
 	c.m.Subscribe(uuid.UUID(params.RequestID), func(msg messages.ServerMsg) bool {
@@ -94,8 +109,8 @@ func (c *QueryRequisition[I, O]) Do(
 
 			errUnmarshal := json.Unmarshal(payload.Response, &zero)
 			if errUnmarshal != nil {
-				return &QueryRequestResponseMsg[O]{
-					Err: &messages.QueryRequestedErrorMsg{
+				return &QueryRequestResponse[O]{
+					Err: &QueryRequestedError{
 						RequestID: payload.RequestID,
 						QueryID:   revent.QueryID(params.QueryID),
 						Reason:    messages.QueryRequestedErrorReasonUnmarshalError,
@@ -104,15 +119,15 @@ func (c *QueryRequisition[I, O]) Do(
 				}, nil
 			}
 
-			return &QueryRequestResponseMsg[O]{
-				Msg: &messages.QueryResponseMsg[O]{
+			return &QueryRequestResponse[O]{
+				Msg: &QueryResponse[O]{
 					RequestID: payload.RequestID,
 					Response:  zero,
 				},
 			}, nil
 		case *messages.QueryRequestedErrorRawMsg:
-			return &QueryRequestResponseMsg[O]{
-				Err: &messages.QueryRequestedErrorMsg{
+			return &QueryRequestResponse[O]{
+				Err: &QueryRequestedError{
 					RequestID: payload.RequestID,
 					QueryID:   revent.QueryID(params.QueryID),
 					Reason:    payload.Reason,
@@ -127,7 +142,7 @@ func (c *QueryRequisition[I, O]) Do(
 	}
 }
 
-func (q QueryRequestResponseMsg[O]) GetRequestID() revent.RequestID {
+func (q QueryRequestResponse[O]) GetRequestID() revent.RequestID {
 	if q.Msg != nil {
 		return q.Msg.RequestID
 	}
@@ -137,4 +152,8 @@ func (q QueryRequestResponseMsg[O]) GetRequestID() revent.RequestID {
 	}
 
 	return revent.RequestID(uuid.Nil)
+}
+
+func (e QueryRequestedError) Error() string {
+	return fmt.Sprintf("query %q response error: %q", e.QueryID, e.Reason)
 }

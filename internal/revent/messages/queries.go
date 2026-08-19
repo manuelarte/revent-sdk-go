@@ -1,8 +1,6 @@
 package messages
 
 import (
-	"fmt"
-
 	"github.com/manuelarte/revent-sdk-go/revent"
 )
 
@@ -21,9 +19,11 @@ var (
 )
 
 var (
-	_ error         = new(QueryRequestedErrorMsg)
 	_ IdempotentMsg = new(QueryRequestMsg)
 	_ IdempotentMsg = new(QueryRequestedMsg)
+	_ IdempotentMsg = new(QueryResponseRawMsg)
+	_ IdempotentMsg = new(QueryHandlingErrorMsg)
+	_ IdempotentMsg = new(QueryRequestedErrorRawMsg)
 )
 
 type (
@@ -49,12 +49,6 @@ type (
 		Response  []byte
 	}
 
-	// QueryResponseMsg is the response to a QueryRequest, built based on QueryResponseRawMsg.
-	QueryResponseMsg[O revent.QueryResponse] struct {
-		RequestID revent.RequestID
-		Response  O
-	}
-
 	QueryHandlingErrorMsg struct {
 		RequestID revent.RequestID
 		Reason    string
@@ -68,21 +62,7 @@ type (
 		RequestID revent.RequestID
 		Reason    QueryRequestedErrorReason
 	}
-
-	// QueryRequestedErrorMsg is the error response to a QueryRequest,
-	// built based on QueryRequestedErrorRawMsg.
-	//nolint:errname // keep consistency with Msg at the end
-	QueryRequestedErrorMsg struct {
-		RequestID revent.RequestID
-		QueryID   revent.QueryID
-		Reason    QueryRequestedErrorReason
-		Details   string
-	}
 )
-
-func (e QueryRequestedErrorMsg) Error() string {
-	return fmt.Sprintf("query %q response error: %q", e.QueryID, e.Reason)
-}
 
 func (q QueryRequestMsg) GetRequestID() revent.RequestID {
 	return q.RequestID
@@ -96,7 +76,7 @@ func (e QueryRequestedErrorRawMsg) GetRequestID() revent.RequestID {
 	return e.RequestID
 }
 
-func (e QueryRequestedErrorMsg) GetRequestID() revent.RequestID {
+func (e QueryHandlingErrorMsg) GetRequestID() revent.RequestID {
 	return e.RequestID
 }
 
@@ -110,5 +90,4 @@ func (e QueryRequestedErrorRawMsg) clientMessage() {}
 func (e QueryHandlingErrorMsg) clientMessage()     {}
 func (q QueryResponseRawMsg) serverMessage()       {}
 func (e QueryRequestedErrorRawMsg) serverMessage() {}
-func (e QueryRequestedErrorMsg) serverMessage()    {}
 func (q QueryRequestedMsg) serverMessage()         {}
