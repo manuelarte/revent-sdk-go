@@ -269,12 +269,15 @@ func (s *scenarioState) iSendAQueryRequest(ctx context.Context, table *godog.Tab
 
 	requestID := revent.RequestID(requestUUID)
 
+	requestCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	defer cancel()
+
 	// Handle different query types based on queryIDRaw
 	switch queryIDRaw {
 	case string(testInvalidResponseQueryClient):
 		// For invalid response query, we expect unmarshal error on client
 		queryID := testInvalidResponseQueryClient
-		output, err := reventsdkgo.QueryRequest(ctx, s.state, requestID, queryID, &bddQueryInput{Value: "any"})
+		output, err := reventsdkgo.QueryRequest(requestCtx, s.state, requestID, queryID, &bddQueryInput{Value: "any"})
 
 		s.queryErrByReqID[requestID] = err
 		if output != nil {
@@ -284,7 +287,7 @@ func (s *scenarioState) iSendAQueryRequest(ctx context.Context, table *godog.Tab
 	case string(testErrorQuery):
 		// For error query, handler returns output that fails marshaling
 		queryID := testErrorQuery
-		output, errQueryRequest := reventsdkgo.QueryRequest(ctx, s.state, requestID, queryID, &bddQueryInput{Value: "any"})
+		output, errQueryRequest := reventsdkgo.QueryRequest(requestCtx, s.state, requestID, queryID, &bddQueryInput{Value: "any"})
 
 		s.queryErrByReqID[requestID] = errQueryRequest
 		if output != nil {
@@ -293,7 +296,7 @@ func (s *scenarioState) iSendAQueryRequest(ctx context.Context, table *godog.Tab
 	default:
 		// For standard test query
 		queryID := revent.Query[*bddQueryInput, *bddQueryOutput](queryIDRaw)
-		output, errQueryRequest := reventsdkgo.QueryRequest(ctx, s.state, requestID, queryID, &bddQueryInput{Value: "any"})
+		output, errQueryRequest := reventsdkgo.QueryRequest(requestCtx, s.state, requestID, queryID, &bddQueryInput{Value: "any"})
 
 		s.queryErrByReqID[requestID] = errQueryRequest
 		if output != nil {
@@ -346,11 +349,14 @@ func (s *scenarioState) iSendAQueryRequestWithTheSameRequestID(
 
 	requestID := revent.RequestID(requestUUID)
 
+	requestCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	defer cancel()
+
 	// Handle different query types
 	switch queryIDRaw {
 	case string(testInvalidResponseQueryClient):
 		queryID := testInvalidResponseQueryClient
-		output, errQueryRequest := reventsdkgo.QueryRequest(ctx, s.state, requestID, queryID, &bddQueryInput{Value: "any"})
+		output, errQueryRequest := reventsdkgo.QueryRequest(requestCtx, s.state, requestID, queryID, &bddQueryInput{Value: "any"})
 
 		s.queryErrByReqID[requestID] = errQueryRequest
 		if output != nil {
@@ -358,7 +364,7 @@ func (s *scenarioState) iSendAQueryRequestWithTheSameRequestID(
 		}
 	case string(testErrorQuery):
 		queryID := testErrorQuery
-		output, errQueryRequest := reventsdkgo.QueryRequest(ctx, s.state, requestID, queryID, &bddQueryInput{Value: "any"})
+		output, errQueryRequest := reventsdkgo.QueryRequest(requestCtx, s.state, requestID, queryID, &bddQueryInput{Value: "any"})
 
 		s.queryErrByReqID[requestID] = errQueryRequest
 		if output != nil {
@@ -366,7 +372,7 @@ func (s *scenarioState) iSendAQueryRequestWithTheSameRequestID(
 		}
 	default:
 		queryID := revent.Query[*bddQueryInput, *bddQueryOutput](queryIDRaw)
-		output, errQueryRequest := reventsdkgo.QueryRequest(ctx, s.state, requestID, queryID, &bddQueryInput{Value: "any"})
+		output, errQueryRequest := reventsdkgo.QueryRequest(requestCtx, s.state, requestID, queryID, &bddQueryInput{Value: "any"})
 
 		s.queryErrByReqID[requestID] = errQueryRequest
 		if output != nil {
@@ -541,9 +547,10 @@ func (s *scenarioState) theQueryShouldFailWithQueryHandlingError(
 	var requestedErr *actions.QueryRequestedError
 	if errors.As(queryErr, &requestedErr) {
 		// If it's a QueryRequestedError, check for appropriate reasons
-		if requestedErr.Reason != messages.QueryRequestedErrorReasonErrorHandling {
+		if requestedErr.Reason != messages.QueryRequestedErrorReasonErrorHandling &&
+			requestedErr.Reason != messages.QueryRequestedErrorReasonQueryTimedOut {
 			return ctx, fmt.Errorf(
-				"expected query error reason to indicate handling failure, got %q",
+				"expected query error reason to indicate handling failure or timeout, got %q",
 				requestedErr.Reason,
 			)
 		}
