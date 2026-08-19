@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 
 	reventsdkgo "github.com/manuelarte/revent-sdk-go"
+	"github.com/manuelarte/revent-sdk-go/internal/revent/actions"
 	"github.com/manuelarte/revent-sdk-go/internal/revent/messages"
 	"github.com/manuelarte/revent-sdk-go/internal/txrx"
 	"github.com/manuelarte/revent-sdk-go/revent"
@@ -279,9 +280,9 @@ func (s *scenarioState) theQueryShouldFailWithQueryHandlerNotFound(
 		return ctx, errors.New("expected query to fail, got nil")
 	}
 
-	var requestedErr *messages.QueryRequestedErrorMsg
+	var requestedErr *actions.QueryRequestedError
 	if !errors.As(queryErr, &requestedErr) {
-		return ctx, fmt.Errorf("expected QueryRequestedErrorMsg, got: %w", queryErr)
+		return ctx, fmt.Errorf("expected QueryRequestedError, got: %w", queryErr)
 	}
 
 	if requestedErr.Reason != messages.QueryRequestedErrorReasonQueryHandlerNotFound {
