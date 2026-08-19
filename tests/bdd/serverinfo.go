@@ -18,6 +18,10 @@ import (
 	reventsdkgo "github.com/manuelarte/revent-sdk-go"
 )
 
+const (
+	reventImage = "ghcr.io/manuelarte/revent:0.0.1-fix-adding-queryhandlingerror-message-5e822a6-snapshot"
+)
+
 type serverInfo struct {
 	container testcontainers.Container
 	host      string

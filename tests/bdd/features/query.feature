@@ -25,3 +25,17 @@ Feature: Query features in R-Event
     Then the query "2a708250-92dd-42b3-a25f-a82c34de8c38" should succeed with result "handled-any"
     When I cancel the SDK session context
     Then the session should finish with context canceled
+
+  Scenario: Query with unmarshal error in response
+    Given the server is running
+    And I register a handler for query "org.github.r-event.sdk.test.invalid-response-query"
+    When I open the SDK session
+    Then the client should be registered by the server
+    When I send a query request
+      | RequestId | 3b808350-93ed-53c4-b36f-b93d45ef9d39 |
+      | Query     | org.github.r-event.sdk.test.invalid-response-query  |
+    Then the query "3b808350-93ed-53c4-b36f-b93d45ef9d39" should fail with UnmarshalError
+    When I cancel the SDK session context
+    Then the session should finish with context canceled
+
+

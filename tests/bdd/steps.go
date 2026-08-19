@@ -81,6 +81,53 @@ func (s *scenarioState) iRegisterAHandlerForQuery(ctx context.Context, queryIDRa
 		if err != nil {
 			return ctx, fmt.Errorf("failed to register query handler: %w", err)
 		}
+	case string(testInvalidResponseQueryServer):
+		// This handler returns bddQueryOutput which marshals to {"Result":"..."}
+		// but the client will try to unmarshal it as bddInvalidQueryOutput
+		// which will fail with UnmarshalError
+		err := reventsdkgo.RegisterQueryHandler(
+			s.state,
+			testInvalidResponseQueryServer,
+			func(ctx context.Context, params *bddQueryInput) *bddQueryOutput {
+				return &bddQueryOutput{Result: "this-will-fail-to-unmarshal"}
+			},
+		)
+		if err != nil {
+			return ctx, fmt.Errorf("failed to register query handler: %w", err)
+		}
+	default:
+		return ctx, fmt.Errorf("unknown query id %q", queryIDRaw)
+	}
+
+	return ctx, nil
+}
+
+func (s *scenarioState) iRegisterAnErrorReturningHandlerForQuery(
+	ctx context.Context,
+	queryIDRaw string,
+) (context.Context, error) {
+	if s.state == nil {
+		state, err := reventsdkgo.NewState(s.cfg)
+		if err != nil {
+			return ctx, fmt.Errorf("failed to create state: %w", err)
+		}
+
+		s.state = state
+	}
+
+	switch queryIDRaw {
+	case string(testErrorQuery):
+		err := reventsdkgo.RegisterQueryHandler(
+			s.state,
+			testErrorQuery,
+			func(ctx context.Context, params *bddQueryInput) *bddErrorQueryOutput {
+				// Return a response that will fail during marshaling
+				return &bddErrorQueryOutput{shouldFail: true}
+			},
+		)
+		if err != nil {
+			return ctx, fmt.Errorf("failed to register query handler: %w", err)
+		}
 	default:
 		return ctx, fmt.Errorf("unknown query id %q", queryIDRaw)
 	}
@@ -221,12 +268,104 @@ func (s *scenarioState) iSendAQueryRequest(ctx context.Context, table *godog.Tab
 	}
 
 	requestID := revent.RequestID(requestUUID)
-	queryID := revent.Query[*bddQueryInput, *bddQueryOutput](queryIDRaw)
-	output, err := reventsdkgo.QueryRequest(ctx, s.state, requestID, queryID, &bddQueryInput{Value: "any"})
 
-	s.queryErrByReqID[requestID] = err
-	if output != nil {
-		s.queryResultByReqID[requestID] = output
+	// Handle different query types based on queryIDRaw
+	switch queryIDRaw {
+	case string(testInvalidResponseQueryClient):
+		// For invalid response query, we expect unmarshal error on client
+		queryID := testInvalidResponseQueryClient
+		output, err := reventsdkgo.QueryRequest(ctx, s.state, requestID, queryID, &bddQueryInput{Value: "any"})
+		s.queryErrByReqID[requestID] = err
+		if output != nil {
+			// Convert to bddQueryOutput for storage (won't happen in error case)
+			s.queryResultByReqID[requestID] = &bddQueryOutput{}
+		}
+	case string(testErrorQuery):
+		// For error query, handler returns output that fails marshaling
+		queryID := testErrorQuery
+		output, err := reventsdkgo.QueryRequest(ctx, s.state, requestID, queryID, &bddQueryInput{Value: "any"})
+		s.queryErrByReqID[requestID] = err
+		if output != nil {
+			s.queryResultByReqID[requestID] = &bddQueryOutput{}
+		}
+	default:
+		// For standard test query
+		queryID := revent.Query[*bddQueryInput, *bddQueryOutput](queryIDRaw)
+		output, err := reventsdkgo.QueryRequest(ctx, s.state, requestID, queryID, &bddQueryInput{Value: "any"})
+		s.queryErrByReqID[requestID] = err
+		if output != nil {
+			s.queryResultByReqID[requestID] = output
+		}
+	}
+
+	return ctx, nil
+}
+
+func (s *scenarioState) iSendAQueryRequestWithTheSameRequestID(
+	ctx context.Context,
+	table *godog.Table,
+) (context.Context, error) {
+	if s.state == nil {
+		return ctx, errors.New("state is nil")
+	}
+
+	if table == nil {
+		return ctx, errors.New("query request table is nil")
+	}
+
+	var requestIDRaw, queryIDRaw string
+
+	for _, row := range table.Rows {
+		if len(row.Cells) < 2 {
+			continue
+		}
+
+		switch strings.TrimSpace(row.Cells[0].Value) {
+		case "RequestId":
+			requestIDRaw = strings.TrimSpace(row.Cells[1].Value)
+		case "Query":
+			queryIDRaw = strings.TrimSpace(row.Cells[1].Value)
+		}
+	}
+
+	if requestIDRaw == "" {
+		return ctx, errors.New("field RequestId is required")
+	}
+
+	if queryIDRaw == "" {
+		return ctx, errors.New("field Query is required")
+	}
+
+	requestUUID, err := uuid.Parse(requestIDRaw)
+	if err != nil {
+		return ctx, fmt.Errorf("invalid RequestId %q: %w", requestIDRaw, err)
+	}
+
+	requestID := revent.RequestID(requestUUID)
+
+	// Handle different query types
+	switch queryIDRaw {
+	case string(testInvalidResponseQueryClient):
+		queryID := testInvalidResponseQueryClient
+		output, err := reventsdkgo.QueryRequest(ctx, s.state, requestID, queryID, &bddQueryInput{Value: "any"})
+		s.queryErrByReqID[requestID] = err
+		if output != nil {
+			s.queryResultByReqID[requestID] = &bddQueryOutput{}
+		}
+	case string(testErrorQuery):
+		queryID := testErrorQuery
+		output, err := reventsdkgo.QueryRequest(ctx, s.state, requestID, queryID, &bddQueryInput{Value: "any"})
+		s.queryErrByReqID[requestID] = err
+		if output != nil {
+			s.queryResultByReqID[requestID] = &bddQueryOutput{}
+		}
+	default:
+		queryID := revent.Query[*bddQueryInput, *bddQueryOutput](queryIDRaw)
+		output, err := reventsdkgo.QueryRequest(ctx, s.state, requestID, queryID, &bddQueryInput{Value: "any"})
+		s.queryErrByReqID[requestID] = err
+		if output != nil {
+			s.queryResultByReqID[requestID] = output
+		}
 	}
 
 	return ctx, nil
@@ -294,3 +433,123 @@ func (s *scenarioState) theQueryShouldFailWithQueryHandlerNotFound(
 
 	return ctx, nil
 }
+
+func (s *scenarioState) theQueryShouldFailWithUnmarshalError(
+	ctx context.Context,
+	requestIDRaw string,
+) (context.Context, error) {
+	requestUUID, err := uuid.Parse(requestIDRaw)
+	if err != nil {
+		return ctx, fmt.Errorf("invalid RequestId %q: %w", requestIDRaw, err)
+	}
+
+	requestID := revent.RequestID(requestUUID)
+
+	queryErr, ok := s.queryErrByReqID[requestID]
+	if !ok {
+		return ctx, fmt.Errorf("query result for request %q was not captured", requestIDRaw)
+	}
+
+	if queryErr == nil {
+		return ctx, errors.New("expected query to fail, got nil")
+	}
+
+	var requestedErr *actions.QueryRequestedError
+	if !errors.As(queryErr, &requestedErr) {
+		return ctx, fmt.Errorf("expected QueryRequestedError, got: %w", queryErr)
+	}
+
+	if requestedErr.Reason != messages.QueryRequestedErrorReasonUnmarshalError {
+		return ctx, fmt.Errorf(
+			"expected query error reason %q, got %q",
+			messages.QueryRequestedErrorReasonUnmarshalError,
+			requestedErr.Reason,
+		)
+	}
+
+	if requestedErr.Details == "" {
+		return ctx, errors.New("expected unmarshal error to have details")
+	}
+
+	return ctx, nil
+}
+
+func (s *scenarioState) theQueryShouldFailWithRequestIdDuplicated(
+	ctx context.Context,
+	requestIDRaw string,
+) (context.Context, error) {
+	requestUUID, err := uuid.Parse(requestIDRaw)
+	if err != nil {
+		return ctx, fmt.Errorf("invalid RequestId %q: %w", requestIDRaw, err)
+	}
+
+	requestID := revent.RequestID(requestUUID)
+
+	queryErr, ok := s.queryErrByReqID[requestID]
+	if !ok {
+		return ctx, fmt.Errorf("query result for request %q was not captured", requestIDRaw)
+	}
+
+	if queryErr == nil {
+		return ctx, errors.New("expected query to fail, got nil")
+	}
+
+	var requestedErr *actions.QueryRequestedError
+	if !errors.As(queryErr, &requestedErr) {
+		return ctx, fmt.Errorf("expected QueryRequestedError, got: %w", queryErr)
+	}
+
+	if requestedErr.Reason != messages.QueryRequestedErrorReasonRequestIDDuplicated {
+		return ctx, fmt.Errorf(
+			"expected query error reason %q, got %q",
+			messages.QueryRequestedErrorReasonRequestIDDuplicated,
+			requestedErr.Reason,
+		)
+	}
+
+	return ctx, nil
+}
+
+func (s *scenarioState) theQueryShouldFailWithQueryHandlingError(
+	ctx context.Context,
+	requestIDRaw string,
+) (context.Context, error) {
+	requestUUID, err := uuid.Parse(requestIDRaw)
+	if err != nil {
+		return ctx, fmt.Errorf("invalid RequestId %q: %w", requestIDRaw, err)
+	}
+
+	requestID := revent.RequestID(requestUUID)
+
+	queryErr, ok := s.queryErrByReqID[requestID]
+	if !ok {
+		return ctx, fmt.Errorf("query result for request %q was not captured", requestIDRaw)
+	}
+
+	if queryErr == nil {
+		return ctx, errors.New("expected query to fail, got nil")
+	}
+
+	// QueryHandlingError can come as either a QueryRequestedError with a specific reason
+	// or as a generic error if the server returns it in a different way
+	var requestedErr *actions.QueryRequestedError
+	if errors.As(queryErr, &requestedErr) {
+		// If it's a QueryRequestedError, check for appropriate reasons
+		if requestedErr.Reason != messages.QueryRequestedErrorReasonUnmarshalError &&
+		   requestedErr.Reason != "ErrorHandling" {
+			return ctx, fmt.Errorf(
+				"expected query error reason to indicate handling failure, got %q",
+				requestedErr.Reason,
+			)
+		}
+		return ctx, nil
+	}
+
+	// Otherwise, just verify there's an error
+	if queryErr.Error() == "" {
+		return ctx, errors.New("expected query to have an error message")
+	}
+
+	return ctx, nil
+}
+

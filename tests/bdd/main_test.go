@@ -15,9 +15,6 @@ import (
 	"github.com/manuelarte/revent-sdk-go/revent"
 )
 
-const (
-	reventImage = "ghcr.io/manuelarte/revent:0.0.1-fix-adding-queryhandlingerror-message-5e822a6-snapshot"
-)
 
 func TestFeatures(t *testing.T) {
 	t.Helper()
@@ -92,11 +89,16 @@ func initializeScenario(ctx *godog.ScenarioContext) {
 	})
 
 	ctx.Step(`^I register a handler for query "([^"]*)"$`, s.iRegisterAHandlerForQuery)
+	ctx.Step(`^I register an error-returning handler for query "([^"]*)"$`, s.iRegisterAnErrorReturningHandlerForQuery)
 	ctx.Step(`^I open the SDK session$`, s.iOpenTheSDKSession)
 	ctx.Step(`^I cancel the SDK session context$`, s.iCancelTheSDKSessionContext)
 	ctx.Step(`^I send a query request$`, s.iSendAQueryRequest)
+	ctx.Step(`^I send a query request with the same request ID$`, s.iSendAQueryRequestWithTheSameRequestID)
 	ctx.Step(`^the client should be registered by the server$`, s.theClientShouldBeRegisteredByTheServer)
 	ctx.Step(`^the query "([^"]*)" should fail with QueryHandlerNotFound$`, s.theQueryShouldFailWithQueryHandlerNotFound)
+	ctx.Step(`^the query "([^"]*)" should fail with UnmarshalError$`, s.theQueryShouldFailWithUnmarshalError)
+	ctx.Step(`^the query "([^"]*)" should fail with RequestIdDuplicated$`, s.theQueryShouldFailWithRequestIdDuplicated)
+	ctx.Step(`^the query "([^"]*)" should fail with QueryHandlingError$`, s.theQueryShouldFailWithQueryHandlingError)
 	ctx.Step(`^the query "([^"]*)" should succeed with result "([^"]*)"$`, s.theQueryShouldSucceedWithResult)
 	ctx.Step(`^the server is running$`, s.theServerIsRunning)
 	ctx.Step(`^the server restarts$`, s.theServerRestarts)
