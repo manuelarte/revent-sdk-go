@@ -18,10 +18,6 @@ import (
 	"github.com/manuelarte/revent-sdk-go/revent"
 )
 
-const (
-	reventImage = "ghcr.io/manuelarte/revent:v0.0.1"
-)
-
 type (
 	scenarioState struct {
 		serverInfo *serverInfo

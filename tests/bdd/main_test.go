@@ -15,6 +15,10 @@ import (
 	"github.com/manuelarte/revent-sdk-go/revent"
 )
 
+const (
+	reventImage = "ghcr.io/manuelarte/revent:0.0.1-fix-adding-queryhandlingerror-message-5e822a6-snapshot"
+)
+
 func TestFeatures(t *testing.T) {
 	t.Helper()
 
