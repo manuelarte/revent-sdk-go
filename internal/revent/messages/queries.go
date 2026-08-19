@@ -8,7 +8,7 @@ const (
 	QueryRequestedErrorReasonRequestIDDuplicated  QueryRequestedErrorReason = "RequestIdDuplicated"
 	QueryRequestedErrorReasonQueryHandlerNotFound QueryRequestedErrorReason = "QueryHandlerNotFound"
 	QueryRequestedErrorReasonQueryTimedOut        QueryRequestedErrorReason = "QueryTimedOut"
-	QueryRequestedErrorReasonUnmarshalError       QueryRequestedErrorReason = "UnmarshalError"
+	QueryRequestedErrorReasonErrorHandling        QueryRequestedErrorReason = "ErrorHandling"
 )
 
 var (

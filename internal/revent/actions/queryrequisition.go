@@ -113,7 +113,7 @@ func (c *QueryRequisition[I, O]) Do(
 					Err: &QueryRequestedError{
 						RequestID: payload.RequestID,
 						QueryID:   revent.QueryID(params.QueryID),
-						Reason:    messages.QueryRequestedErrorReasonUnmarshalError,
+						Reason:    messages.QueryRequestedErrorReasonErrorHandling,
 						Details:   errUnmarshal.Error(),
 					},
 				}, nil

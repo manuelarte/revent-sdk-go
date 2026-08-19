@@ -38,4 +38,16 @@ Feature: Query features in R-Event
     When I cancel the SDK session context
     Then the session should finish with context canceled
 
+  Scenario: Handler returns error when processing query
+    Given the server is running
+    And I register an error-returning handler for query "org.github.r-event.sdk.test.error-query"
+    When I open the SDK session
+    Then the client should be registered by the server
+    When I send a query request
+      | RequestId | 5d910562-b5af-75e6-d58f-d15f67af1f51 |
+      | Query     | org.github.r-event.sdk.test.error-query  |
+    Then the query "5d910562-b5af-75e6-d58f-d15f67af1f51" should fail with QueryHandlingError
+    When I cancel the SDK session context
+    Then the session should finish with context canceled
+
 

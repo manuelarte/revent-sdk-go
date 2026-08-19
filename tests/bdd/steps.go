@@ -465,10 +465,10 @@ func (s *scenarioState) theQueryShouldFailWithUnmarshalError(
 		return ctx, fmt.Errorf("expected QueryRequestedError, got: %w", queryErr)
 	}
 
-	if requestedErr.Reason != messages.QueryRequestedErrorReasonUnmarshalError {
+	if requestedErr.Reason != messages.QueryRequestedErrorReasonErrorHandling {
 		return ctx, fmt.Errorf(
 			"expected query error reason %q, got %q",
-			messages.QueryRequestedErrorReasonUnmarshalError,
+			messages.QueryRequestedErrorReasonErrorHandling,
 			requestedErr.Reason,
 		)
 	}
@@ -541,8 +541,7 @@ func (s *scenarioState) theQueryShouldFailWithQueryHandlingError(
 	var requestedErr *actions.QueryRequestedError
 	if errors.As(queryErr, &requestedErr) {
 		// If it's a QueryRequestedError, check for appropriate reasons
-		if requestedErr.Reason != messages.QueryRequestedErrorReasonUnmarshalError &&
-			requestedErr.Reason != "ErrorHandling" {
+		if requestedErr.Reason != messages.QueryRequestedErrorReasonErrorHandling {
 			return ctx, fmt.Errorf(
 				"expected query error reason to indicate handling failure, got %q",
 				requestedErr.Reason,

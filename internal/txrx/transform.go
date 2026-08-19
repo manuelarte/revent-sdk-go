@@ -64,6 +64,21 @@ func transformClientMessageToGRPC(msg messages.ClientMsg) (*reventv1.ClientToSer
 				},
 			},
 		}, nil
+	case *messages.QueryHandlingErrorMsg:
+		var reason reventv1.QueryHandlingErrorReason
+		switch msg.Reason {
+		case string(messages.QueryRequestedErrorReasonErrorHandling):
+			reason = reventv1.QueryHandlingErrorReason(1)
+		default:
+			reason = reventv1.QueryHandlingErrorReason(0)
+		}
+		return &reventv1.ClientToServerMessage{Payload: &reventv1.ClientToServerMessage_QueryHandlingError{
+			QueryHandlingError: &reventv1.QueryHandlingError{
+				RequestId: msg.RequestID.String(),
+				Reason:    reason,
+				Details:   msg.Details,
+			},
+		}}, nil
 	}
 
 	return nil, &UnknownMsgError{

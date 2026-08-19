@@ -80,7 +80,7 @@ func (qh *QueryHandling) Do(ctx context.Context, qhp QueryHandlingParams) (*Quer
 	if err != nil {
 		msg := &messages.QueryHandlingErrorMsg{
 			RequestID: qhp.Msg.RequestID,
-			Reason:    "ErrorHandling",
+			Reason:    string(messages.QueryRequestedErrorReasonErrorHandling),
 			Details:   err.Error(),
 		}
 
