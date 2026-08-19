@@ -275,6 +275,7 @@ func (s *scenarioState) iSendAQueryRequest(ctx context.Context, table *godog.Tab
 		// For invalid response query, we expect unmarshal error on client
 		queryID := testInvalidResponseQueryClient
 		output, err := reventsdkgo.QueryRequest(ctx, s.state, requestID, queryID, &bddQueryInput{Value: "any"})
+
 		s.queryErrByReqID[requestID] = err
 		if output != nil {
 			// Convert to bddQueryOutput for storage (won't happen in error case)
@@ -283,16 +284,18 @@ func (s *scenarioState) iSendAQueryRequest(ctx context.Context, table *godog.Tab
 	case string(testErrorQuery):
 		// For error query, handler returns output that fails marshaling
 		queryID := testErrorQuery
-		output, err := reventsdkgo.QueryRequest(ctx, s.state, requestID, queryID, &bddQueryInput{Value: "any"})
-		s.queryErrByReqID[requestID] = err
+		output, errQueryRequest := reventsdkgo.QueryRequest(ctx, s.state, requestID, queryID, &bddQueryInput{Value: "any"})
+
+		s.queryErrByReqID[requestID] = errQueryRequest
 		if output != nil {
 			s.queryResultByReqID[requestID] = &bddQueryOutput{}
 		}
 	default:
 		// For standard test query
 		queryID := revent.Query[*bddQueryInput, *bddQueryOutput](queryIDRaw)
-		output, err := reventsdkgo.QueryRequest(ctx, s.state, requestID, queryID, &bddQueryInput{Value: "any"})
-		s.queryErrByReqID[requestID] = err
+		output, errQueryRequest := reventsdkgo.QueryRequest(ctx, s.state, requestID, queryID, &bddQueryInput{Value: "any"})
+
+		s.queryErrByReqID[requestID] = errQueryRequest
 		if output != nil {
 			s.queryResultByReqID[requestID] = output
 		}
@@ -347,22 +350,25 @@ func (s *scenarioState) iSendAQueryRequestWithTheSameRequestID(
 	switch queryIDRaw {
 	case string(testInvalidResponseQueryClient):
 		queryID := testInvalidResponseQueryClient
-		output, err := reventsdkgo.QueryRequest(ctx, s.state, requestID, queryID, &bddQueryInput{Value: "any"})
-		s.queryErrByReqID[requestID] = err
+		output, errQueryRequest := reventsdkgo.QueryRequest(ctx, s.state, requestID, queryID, &bddQueryInput{Value: "any"})
+
+		s.queryErrByReqID[requestID] = errQueryRequest
 		if output != nil {
 			s.queryResultByReqID[requestID] = &bddQueryOutput{}
 		}
 	case string(testErrorQuery):
 		queryID := testErrorQuery
-		output, err := reventsdkgo.QueryRequest(ctx, s.state, requestID, queryID, &bddQueryInput{Value: "any"})
-		s.queryErrByReqID[requestID] = err
+		output, errQueryRequest := reventsdkgo.QueryRequest(ctx, s.state, requestID, queryID, &bddQueryInput{Value: "any"})
+
+		s.queryErrByReqID[requestID] = errQueryRequest
 		if output != nil {
 			s.queryResultByReqID[requestID] = &bddQueryOutput{}
 		}
 	default:
 		queryID := revent.Query[*bddQueryInput, *bddQueryOutput](queryIDRaw)
-		output, err := reventsdkgo.QueryRequest(ctx, s.state, requestID, queryID, &bddQueryInput{Value: "any"})
-		s.queryErrByReqID[requestID] = err
+		output, errQueryRequest := reventsdkgo.QueryRequest(ctx, s.state, requestID, queryID, &bddQueryInput{Value: "any"})
+
+		s.queryErrByReqID[requestID] = errQueryRequest
 		if output != nil {
 			s.queryResultByReqID[requestID] = output
 		}
@@ -474,7 +480,7 @@ func (s *scenarioState) theQueryShouldFailWithUnmarshalError(
 	return ctx, nil
 }
 
-func (s *scenarioState) theQueryShouldFailWithRequestIdDuplicated(
+func (s *scenarioState) theQueryShouldFailWithRequestIDDuplicated(
 	ctx context.Context,
 	requestIDRaw string,
 ) (context.Context, error) {
@@ -536,12 +542,13 @@ func (s *scenarioState) theQueryShouldFailWithQueryHandlingError(
 	if errors.As(queryErr, &requestedErr) {
 		// If it's a QueryRequestedError, check for appropriate reasons
 		if requestedErr.Reason != messages.QueryRequestedErrorReasonUnmarshalError &&
-		   requestedErr.Reason != "ErrorHandling" {
+			requestedErr.Reason != "ErrorHandling" {
 			return ctx, fmt.Errorf(
 				"expected query error reason to indicate handling failure, got %q",
 				requestedErr.Reason,
 			)
 		}
+
 		return ctx, nil
 	}
 
@@ -552,4 +559,3 @@ func (s *scenarioState) theQueryShouldFailWithQueryHandlingError(
 
 	return ctx, nil
 }
-

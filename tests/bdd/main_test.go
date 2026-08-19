@@ -15,7 +15,6 @@ import (
 	"github.com/manuelarte/revent-sdk-go/revent"
 )
 
-
 func TestFeatures(t *testing.T) {
 	t.Helper()
 
@@ -97,7 +96,7 @@ func initializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^the client should be registered by the server$`, s.theClientShouldBeRegisteredByTheServer)
 	ctx.Step(`^the query "([^"]*)" should fail with QueryHandlerNotFound$`, s.theQueryShouldFailWithQueryHandlerNotFound)
 	ctx.Step(`^the query "([^"]*)" should fail with UnmarshalError$`, s.theQueryShouldFailWithUnmarshalError)
-	ctx.Step(`^the query "([^"]*)" should fail with RequestIdDuplicated$`, s.theQueryShouldFailWithRequestIdDuplicated)
+	ctx.Step(`^the query "([^"]*)" should fail with RequestIdDuplicated$`, s.theQueryShouldFailWithRequestIDDuplicated)
 	ctx.Step(`^the query "([^"]*)" should fail with QueryHandlingError$`, s.theQueryShouldFailWithQueryHandlingError)
 	ctx.Step(`^the query "([^"]*)" should succeed with result "([^"]*)"$`, s.theQueryShouldSucceedWithResult)
 	ctx.Step(`^the server is running$`, s.theServerIsRunning)
