@@ -68,22 +68,25 @@ func (s *scenarioState) iRegisterAHandlerForQuery(ctx context.Context, queryIDRa
 		s.state = state
 	}
 
-	query := revent.Query[*bddQueryInput, *bddQueryOutput](queryIDRaw)
+	switch queryIDRaw {
+	case string(testQuery):
+		err := reventsdkgo.RegisterQueryHandler(
+			s.state,
+			testQuery,
+			func(ctx context.Context, params *bddQueryInput) *bddQueryOutput {
+				val := ""
+				if params != nil {
+					val = params.Value
+				}
 
-	err := reventsdkgo.RegisterQueryHandler(
-		s.state,
-		query,
-		func(ctx context.Context, params *bddQueryInput) *bddQueryOutput {
-			val := ""
-			if params != nil {
-				val = params.Value
-			}
-
-			return &bddQueryOutput{Result: "handled-" + val}
-		},
-	)
-	if err != nil {
-		return ctx, fmt.Errorf("failed to register query handler: %w", err)
+				return &bddQueryOutput{Result: "handled-" + val}
+			},
+		)
+		if err != nil {
+			return ctx, fmt.Errorf("failed to register query handler: %w", err)
+		}
+	default:
+		return ctx, fmt.Errorf("unknown query id %q", queryIDRaw)
 	}
 
 	return ctx, nil

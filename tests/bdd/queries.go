@@ -5,7 +5,7 @@ import (
 )
 
 //nolint:gochecknoglobals,unused // check later
-var testQuery revent.Query[*bddQueryInput, *bddQueryOutput] = "org.github.r-event.sdk.test.query"
+var testQuery revent.Query[*bddQueryInput, *bddQueryOutput] = "org.github.r-event.sdk.test.no-params-query"
 
 type (
 	bddQueryInput struct {
