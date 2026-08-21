@@ -153,3 +153,7 @@ func (q QueryRequestResponse[O]) GetRequestID() revent.RequestID {
 
 	return revent.RequestID(uuid.Nil)
 }
+
+func (e QueryRequestedFailed) Error() string {
+	return fmt.Sprintf("query %q response error: %q", e.QueryID, e.Reason)
+}
