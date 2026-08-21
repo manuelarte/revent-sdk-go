@@ -25,51 +25,51 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type QueryHandlingErrorReason int32
+type QueryHandlingFailedReason int32
 
 const (
 	// Indicates that the reason for the error is unknown.
-	QueryHandlingErrorReason_Unknown QueryHandlingErrorReason = 0
+	QueryHandlingFailedReason_Unknown QueryHandlingFailedReason = 0
 	// Indicates that there was an error processing the query request.
-	QueryHandlingErrorReason_ErrorHandling QueryHandlingErrorReason = 1
+	QueryHandlingFailedReason_ErrorHandling QueryHandlingFailedReason = 1
 )
 
-// Enum value maps for QueryHandlingErrorReason.
+// Enum value maps for QueryHandlingFailedReason.
 var (
-	QueryHandlingErrorReason_name = map[int32]string{
+	QueryHandlingFailedReason_name = map[int32]string{
 		0: "Unknown",
 		1: "ErrorHandling",
 	}
-	QueryHandlingErrorReason_value = map[string]int32{
+	QueryHandlingFailedReason_value = map[string]int32{
 		"Unknown":       0,
 		"ErrorHandling": 1,
 	}
 )
 
-func (x QueryHandlingErrorReason) Enum() *QueryHandlingErrorReason {
-	p := new(QueryHandlingErrorReason)
+func (x QueryHandlingFailedReason) Enum() *QueryHandlingFailedReason {
+	p := new(QueryHandlingFailedReason)
 	*p = x
 	return p
 }
 
-func (x QueryHandlingErrorReason) String() string {
+func (x QueryHandlingFailedReason) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (QueryHandlingErrorReason) Descriptor() protoreflect.EnumDescriptor {
+func (QueryHandlingFailedReason) Descriptor() protoreflect.EnumDescriptor {
 	return file_revent_v1_query_messages_proto_enumTypes[0].Descriptor()
 }
 
-func (QueryHandlingErrorReason) Type() protoreflect.EnumType {
+func (QueryHandlingFailedReason) Type() protoreflect.EnumType {
 	return &file_revent_v1_query_messages_proto_enumTypes[0]
 }
 
-func (x QueryHandlingErrorReason) Number() protoreflect.EnumNumber {
+func (x QueryHandlingFailedReason) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use QueryHandlingErrorReason.Descriptor instead.
-func (QueryHandlingErrorReason) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use QueryHandlingFailedReason.Descriptor instead.
+func (QueryHandlingFailedReason) EnumDescriptor() ([]byte, []int) {
 	return file_revent_v1_query_messages_proto_rawDescGZIP(), []int{0}
 }
 
@@ -195,33 +195,33 @@ func (x *QueryResponse) GetResult() []byte {
 }
 
 // *
-// QueryHandlingError is sent when there is an error processing a QueryRequest message.
-type QueryHandlingError struct {
+// QueryHandlingFailed is sent when there is an error processing a QueryRequest message.
+type QueryHandlingFailed struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unique identifier for this request.
 	RequestId string `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
 	// Reason why the query could not be handled.
-	Reason QueryHandlingErrorReason `protobuf:"varint,2,opt,name=reason,proto3,enum=revent.v1.QueryHandlingErrorReason" json:"reason,omitempty"`
+	Reason QueryHandlingFailedReason `protobuf:"varint,2,opt,name=reason,proto3,enum=revent.v1.QueryHandlingFailedReason" json:"reason,omitempty"`
 	// Additional details about the error, if applicable.
 	Details       string `protobuf:"bytes,3,opt,name=details,proto3" json:"details,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *QueryHandlingError) Reset() {
-	*x = QueryHandlingError{}
+func (x *QueryHandlingFailed) Reset() {
+	*x = QueryHandlingFailed{}
 	mi := &file_revent_v1_query_messages_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *QueryHandlingError) String() string {
+func (x *QueryHandlingFailed) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*QueryHandlingError) ProtoMessage() {}
+func (*QueryHandlingFailed) ProtoMessage() {}
 
-func (x *QueryHandlingError) ProtoReflect() protoreflect.Message {
+func (x *QueryHandlingFailed) ProtoReflect() protoreflect.Message {
 	mi := &file_revent_v1_query_messages_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -233,26 +233,26 @@ func (x *QueryHandlingError) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use QueryHandlingError.ProtoReflect.Descriptor instead.
-func (*QueryHandlingError) Descriptor() ([]byte, []int) {
+// Deprecated: Use QueryHandlingFailed.ProtoReflect.Descriptor instead.
+func (*QueryHandlingFailed) Descriptor() ([]byte, []int) {
 	return file_revent_v1_query_messages_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *QueryHandlingError) GetRequestId() string {
+func (x *QueryHandlingFailed) GetRequestId() string {
 	if x != nil {
 		return x.RequestId
 	}
 	return ""
 }
 
-func (x *QueryHandlingError) GetReason() QueryHandlingErrorReason {
+func (x *QueryHandlingFailed) GetReason() QueryHandlingFailedReason {
 	if x != nil {
 		return x.Reason
 	}
-	return QueryHandlingErrorReason_Unknown
+	return QueryHandlingFailedReason_Unknown
 }
 
-func (x *QueryHandlingError) GetDetails() string {
+func (x *QueryHandlingFailed) GetDetails() string {
 	if x != nil {
 		return x.Details
 	}
@@ -381,8 +381,8 @@ func (x *QueryResponded) GetResult() []byte {
 }
 
 // *
-// QueryRequestedError is sent when there is an error processing a QueryRequest message.
-type QueryRequestedError struct {
+// QueryRequestedFailed is sent when there is an error processing a QueryRequest message.
+type QueryRequestedFailed struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unique identifier for this request.
 	RequestId string `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
@@ -394,20 +394,20 @@ type QueryRequestedError struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *QueryRequestedError) Reset() {
-	*x = QueryRequestedError{}
+func (x *QueryRequestedFailed) Reset() {
+	*x = QueryRequestedFailed{}
 	mi := &file_revent_v1_query_messages_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *QueryRequestedError) String() string {
+func (x *QueryRequestedFailed) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*QueryRequestedError) ProtoMessage() {}
+func (*QueryRequestedFailed) ProtoMessage() {}
 
-func (x *QueryRequestedError) ProtoReflect() protoreflect.Message {
+func (x *QueryRequestedFailed) ProtoReflect() protoreflect.Message {
 	mi := &file_revent_v1_query_messages_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -419,26 +419,26 @@ func (x *QueryRequestedError) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use QueryRequestedError.ProtoReflect.Descriptor instead.
-func (*QueryRequestedError) Descriptor() ([]byte, []int) {
+// Deprecated: Use QueryRequestedFailed.ProtoReflect.Descriptor instead.
+func (*QueryRequestedFailed) Descriptor() ([]byte, []int) {
 	return file_revent_v1_query_messages_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *QueryRequestedError) GetRequestId() string {
+func (x *QueryRequestedFailed) GetRequestId() string {
 	if x != nil {
 		return x.RequestId
 	}
 	return ""
 }
 
-func (x *QueryRequestedError) GetQueryId() string {
+func (x *QueryRequestedFailed) GetQueryId() string {
 	if x != nil {
 		return x.QueryId
 	}
 	return ""
 }
 
-func (x *QueryRequestedError) GetReason() string {
+func (x *QueryRequestedFailed) GetReason() string {
 	if x != nil {
 		return x.Reason
 	}
@@ -463,11 +463,11 @@ const file_revent_v1_query_messages_proto_rawDesc = "" +
 	"\rQueryResponse\x12*\n" +
 	"\n" +
 	"request_id\x18\x01 \x01(\tB\v\xe0A\x02\xe2\x8c\xcf\xd7\b\x02\b\x01R\trequestId\x12\x1b\n" +
-	"\x06result\x18\x02 \x01(\fB\x03\xe0A\x02R\x06result\"\xa1\x01\n" +
-	"\x12QueryHandlingError\x12*\n" +
+	"\x06result\x18\x02 \x01(\fB\x03\xe0A\x02R\x06result\"\xa3\x01\n" +
+	"\x13QueryHandlingFailed\x12*\n" +
 	"\n" +
-	"request_id\x18\x01 \x01(\tB\v\xe0A\x02\xe2\x8c\xcf\xd7\b\x02\b\x01R\trequestId\x12@\n" +
-	"\x06reason\x18\x02 \x01(\x0e2#.revent.v1.QueryHandlingErrorReasonB\x03\xe0A\x02R\x06reason\x12\x1d\n" +
+	"request_id\x18\x01 \x01(\tB\v\xe0A\x02\xe2\x8c\xcf\xd7\b\x02\b\x01R\trequestId\x12A\n" +
+	"\x06reason\x18\x02 \x01(\x0e2$.revent.v1.QueryHandlingFailedReasonB\x03\xe0A\x02R\x06reason\x12\x1d\n" +
 	"\adetails\x18\x03 \x01(\tB\x03\xe0A\x01R\adetails\"\xe6\x01\n" +
 	"\x0eQueryRequested\x12*\n" +
 	"\n" +
@@ -482,13 +482,13 @@ const file_revent_v1_query_messages_proto_rawDesc = "" +
 	"\x0eQueryResponded\x12*\n" +
 	"\n" +
 	"request_id\x18\x01 \x01(\tB\v\xe0A\x02\xe2\x8c\xcf\xd7\b\x02\b\x01R\trequestId\x12\x16\n" +
-	"\x06result\x18\x02 \x01(\fR\x06result\"~\n" +
-	"\x13QueryRequestedError\x12*\n" +
+	"\x06result\x18\x02 \x01(\fR\x06result\"\x7f\n" +
+	"\x14QueryRequestedFailed\x12*\n" +
 	"\n" +
 	"request_id\x18\x01 \x01(\tB\v\xe0A\x02\xe2\x8c\xcf\xd7\b\x02\b\x01R\trequestId\x12\x1e\n" +
 	"\bquery_id\x18\x02 \x01(\tB\x03\xe0A\x02R\aqueryId\x12\x1b\n" +
-	"\x06reason\x18\x03 \x01(\tB\x03\xe0A\x02R\x06reason*:\n" +
-	"\x18QueryHandlingErrorReason\x12\v\n" +
+	"\x06reason\x18\x03 \x01(\tB\x03\xe0A\x02R\x06reason*;\n" +
+	"\x19QueryHandlingFailedReason\x12\v\n" +
 	"\aUnknown\x10\x00\x12\x11\n" +
 	"\rErrorHandling\x10\x01B\xb3\x01\n" +
 	"\rcom.revent.v1B\x12QueryMessagesProtoP\x01ZIgithub.com/manuelarte/revent-sdk-go/internal/revent/v1/revent/v1;reventv1\xa2\x02\x03RXX\xaa\x02\tRevent.V1\xca\x02\tRevent\\V1\xe2\x02\x15Revent\\V1\\GPBMetadata\xea\x02\n" +
@@ -509,19 +509,19 @@ func file_revent_v1_query_messages_proto_rawDescGZIP() []byte {
 var file_revent_v1_query_messages_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_revent_v1_query_messages_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_revent_v1_query_messages_proto_goTypes = []any{
-	(QueryHandlingErrorReason)(0), // 0: revent.v1.QueryHandlingErrorReason
-	(*QueryRequest)(nil),          // 1: revent.v1.QueryRequest
-	(*QueryResponse)(nil),         // 2: revent.v1.QueryResponse
-	(*QueryHandlingError)(nil),    // 3: revent.v1.QueryHandlingError
-	(*QueryRequested)(nil),        // 4: revent.v1.QueryRequested
-	(*QueryResponded)(nil),        // 5: revent.v1.QueryResponded
-	(*QueryRequestedError)(nil),   // 6: revent.v1.QueryRequestedError
-	nil,                           // 7: revent.v1.QueryRequest.ParametersEntry
-	nil,                           // 8: revent.v1.QueryRequested.ParametersEntry
+	(QueryHandlingFailedReason)(0), // 0: revent.v1.QueryHandlingFailedReason
+	(*QueryRequest)(nil),           // 1: revent.v1.QueryRequest
+	(*QueryResponse)(nil),          // 2: revent.v1.QueryResponse
+	(*QueryHandlingFailed)(nil),    // 3: revent.v1.QueryHandlingFailed
+	(*QueryRequested)(nil),         // 4: revent.v1.QueryRequested
+	(*QueryResponded)(nil),         // 5: revent.v1.QueryResponded
+	(*QueryRequestedFailed)(nil),   // 6: revent.v1.QueryRequestedFailed
+	nil,                            // 7: revent.v1.QueryRequest.ParametersEntry
+	nil,                            // 8: revent.v1.QueryRequested.ParametersEntry
 }
 var file_revent_v1_query_messages_proto_depIdxs = []int32{
 	7, // 0: revent.v1.QueryRequest.parameters:type_name -> revent.v1.QueryRequest.ParametersEntry
-	0, // 1: revent.v1.QueryHandlingError.reason:type_name -> revent.v1.QueryHandlingErrorReason
+	0, // 1: revent.v1.QueryHandlingFailed.reason:type_name -> revent.v1.QueryHandlingFailedReason
 	8, // 2: revent.v1.QueryRequested.parameters:type_name -> revent.v1.QueryRequested.ParametersEntry
 	3, // [3:3] is the sub-list for method output_type
 	3, // [3:3] is the sub-list for method input_type

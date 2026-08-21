@@ -71,7 +71,7 @@ func TestClientRegistrationDoSuccess(t *testing.T) {
 
 func TestClientRegistrationDoServerError(t *testing.T) {
 	m := &fakeRegistrationManager{
-		response: &messages.ClientRegistrationErrorMsg{
+		response: &messages.ClientRegistrationFailedMsg{
 			ClientID: "my-client",
 			Reason:   "duplicate client id",
 		},

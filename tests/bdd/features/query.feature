@@ -46,7 +46,7 @@ Feature: Query features in R-Event
     When I send a query request
       | RequestId | 5d910562-b5af-75e6-d58f-d15f67af1f51 |
       | Query     | org.github.r-event.sdk.test.error-query  |
-    Then the query "5d910562-b5af-75e6-d58f-d15f67af1f51" should fail with QueryHandlingError
+    Then the query "5d910562-b5af-75e6-d58f-d15f67af1f51" should fail with QueryHandlingFailed
     When I cancel the SDK session context
     Then the session should finish with context canceled
 

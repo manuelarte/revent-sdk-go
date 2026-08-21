@@ -64,16 +64,18 @@ func transformClientMessageToGRPC(msg messages.ClientMsg) (*reventv1.ClientToSer
 				},
 			},
 		}, nil
-	case *messages.QueryHandlingErrorMsg:
-		var reason reventv1.QueryHandlingErrorReason
+	case *messages.QueryHandlingFailedMsg:
+		var reason reventv1.QueryHandlingFailedReason
+
 		switch msg.Reason {
-		case string(messages.QueryRequestedErrorReasonErrorHandling):
-			reason = reventv1.QueryHandlingErrorReason(1)
+		case string(messages.QueryRequestedFailedReasonErrorHandling):
+			reason = reventv1.QueryHandlingFailedReason(1)
 		default:
-			reason = reventv1.QueryHandlingErrorReason(0)
+			reason = reventv1.QueryHandlingFailedReason(0)
 		}
-		return &reventv1.ClientToServerMessage{Payload: &reventv1.ClientToServerMessage_QueryHandlingError{
-			QueryHandlingError: &reventv1.QueryHandlingError{
+
+		return &reventv1.ClientToServerMessage{Payload: &reventv1.ClientToServerMessage_QueryHandlingFailed{
+			QueryHandlingFailed: &reventv1.QueryHandlingFailed{
 				RequestId: msg.RequestID.String(),
 				Reason:    reason,
 				Details:   msg.Details,
@@ -92,10 +94,10 @@ func transformServerMessageToGRPC(msg *reventv1.ServerToClientMessage) (messages
 		return &messages.ClientRegisteredMsg{
 			ClientID: revent.ClientID(casted.ClientRegistered.GetClientId()),
 		}, nil
-	case *reventv1.ServerToClientMessage_ClientRegistrationError:
-		return &messages.ClientRegistrationErrorMsg{
-			ClientID: revent.ClientID(casted.ClientRegistrationError.GetClientId()),
-			Reason:   casted.ClientRegistrationError.GetReason(),
+	case *reventv1.ServerToClientMessage_ClientRegistrationFailed:
+		return &messages.ClientRegistrationFailedMsg{
+			ClientID: revent.ClientID(casted.ClientRegistrationFailed.GetClientId()),
+			Reason:   casted.ClientRegistrationFailed.GetReason(),
 		}, nil
 	case *reventv1.ServerToClientMessage_QueryRequested:
 		return &messages.QueryRequestedMsg{
@@ -108,10 +110,10 @@ func transformServerMessageToGRPC(msg *reventv1.ServerToClientMessage) (messages
 			RequestID: revent.RequestID(uuid.MustParse(casted.QueryResponded.GetRequestId())),
 			Response:  casted.QueryResponded.GetResult(),
 		}, nil
-	case *reventv1.ServerToClientMessage_QueryRequestedError:
-		return &messages.QueryRequestedErrorRawMsg{
-			RequestID: revent.RequestID(uuid.MustParse(casted.QueryRequestedError.GetRequestId())),
-			Reason:    messages.QueryRequestedErrorReason(casted.QueryRequestedError.GetReason()),
+	case *reventv1.ServerToClientMessage_QueryRequestedFailed:
+		return &messages.QueryRequestedFailedRawMsg{
+			RequestID: revent.RequestID(uuid.MustParse(casted.QueryRequestedFailed.GetRequestId())),
+			Reason:    messages.QueryRequestedFailedReason(casted.QueryRequestedFailed.GetReason()),
 		}, nil
 	//nolint:nilnil // think about this later.
 	case *reventv1.ServerToClientMessage_Heartbeat:

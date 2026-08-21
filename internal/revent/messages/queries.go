@@ -5,16 +5,16 @@ import (
 )
 
 const (
-	QueryRequestedErrorReasonRequestIDDuplicated  QueryRequestedErrorReason = "RequestIdDuplicated"
-	QueryRequestedErrorReasonQueryHandlerNotFound QueryRequestedErrorReason = "QueryHandlerNotFound"
-	QueryRequestedErrorReasonQueryTimedOut        QueryRequestedErrorReason = "QueryTimedOut"
-	QueryRequestedErrorReasonErrorHandling        QueryRequestedErrorReason = "ErrorHandling"
+	QueryRequestedFailedReasonRequestIDDuplicated  QueryRequestedFailedReason = "RequestIdDuplicated"
+	QueryRequestedFailedReasonQueryHandlerNotFound QueryRequestedFailedReason = "QueryHandlerNotFound"
+	QueryRequestedFailedReasonQueryTimedOut        QueryRequestedFailedReason = "QueryTimedOut"
+	QueryRequestedFailedReasonErrorHandling        QueryRequestedFailedReason = "ErrorHandling"
 )
 
 var (
 	_ ClientMsg = new(QueryRequestMsg)
 	_ ClientMsg = new(QueryResponseRawMsg)
-	_ ServerMsg = new(QueryRequestedErrorRawMsg)
+	_ ServerMsg = new(QueryRequestedFailedRawMsg)
 	_ ServerMsg = new(QueryRequestedMsg)
 )
 
@@ -22,8 +22,8 @@ var (
 	_ IdempotentMsg = new(QueryRequestMsg)
 	_ IdempotentMsg = new(QueryRequestedMsg)
 	_ IdempotentMsg = new(QueryResponseRawMsg)
-	_ IdempotentMsg = new(QueryHandlingErrorMsg)
-	_ IdempotentMsg = new(QueryRequestedErrorRawMsg)
+	_ IdempotentMsg = new(QueryHandlingFailedMsg)
+	_ IdempotentMsg = new(QueryRequestedFailedRawMsg)
 )
 
 type (
@@ -49,18 +49,18 @@ type (
 		Response  []byte
 	}
 
-	QueryHandlingErrorMsg struct {
+	QueryHandlingFailedMsg struct {
 		RequestID revent.RequestID
 		Reason    string
 		Details   string
 	}
 
-	QueryRequestedErrorReason string
+	QueryRequestedFailedReason string
 
-	// QueryRequestedErrorRawMsg is the raw error response to a QueryRequest.
-	QueryRequestedErrorRawMsg struct {
+	// QueryRequestedFailedRawMsg is the raw error response to a QueryRequest.
+	QueryRequestedFailedRawMsg struct {
 		RequestID revent.RequestID
-		Reason    QueryRequestedErrorReason
+		Reason    QueryRequestedFailedReason
 	}
 )
 
@@ -72,11 +72,11 @@ func (q QueryResponseRawMsg) GetRequestID() revent.RequestID {
 	return q.RequestID
 }
 
-func (e QueryRequestedErrorRawMsg) GetRequestID() revent.RequestID {
+func (e QueryRequestedFailedRawMsg) GetRequestID() revent.RequestID {
 	return e.RequestID
 }
 
-func (e QueryHandlingErrorMsg) GetRequestID() revent.RequestID {
+func (e QueryHandlingFailedMsg) GetRequestID() revent.RequestID {
 	return e.RequestID
 }
 
@@ -84,10 +84,10 @@ func (q QueryRequestedMsg) GetRequestID() revent.RequestID {
 	return q.RequestID
 }
 
-func (q QueryRequestMsg) clientMessage()           {}
-func (q QueryResponseRawMsg) clientMessage()       {}
-func (e QueryRequestedErrorRawMsg) clientMessage() {}
-func (e QueryHandlingErrorMsg) clientMessage()     {}
-func (q QueryResponseRawMsg) serverMessage()       {}
-func (e QueryRequestedErrorRawMsg) serverMessage() {}
-func (q QueryRequestedMsg) serverMessage()         {}
+func (q QueryRequestMsg) clientMessage()            {}
+func (q QueryResponseRawMsg) clientMessage()        {}
+func (e QueryRequestedFailedRawMsg) clientMessage() {}
+func (e QueryHandlingFailedMsg) clientMessage()     {}
+func (q QueryResponseRawMsg) serverMessage()        {}
+func (e QueryRequestedFailedRawMsg) serverMessage() {}
+func (q QueryRequestedMsg) serverMessage()          {}

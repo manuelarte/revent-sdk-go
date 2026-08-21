@@ -9,10 +9,10 @@ import (
 var (
 	_ ClientMsg = new(ClientRegistrationMsg)
 	_ ServerMsg = new(ClientRegisteredMsg)
-	_ ServerMsg = new(ClientRegistrationErrorMsg)
+	_ ServerMsg = new(ClientRegistrationFailedMsg)
 )
 
-var _ error = new(ClientRegistrationErrorMsg)
+var _ error = new(ClientRegistrationFailedMsg)
 
 type (
 	// ClientRegistrationMsg client event indicating that the client wants to register.
@@ -26,16 +26,16 @@ type (
 		ClientID revent.ClientID
 	}
 
-	// ClientRegistrationErrorMsg r-event message indicating that
+	// ClientRegistrationFailedMsg r-event message indicating that
 	// the client could not be registered.
 	//nolint:errname // keep consistency with Msg at the end
-	ClientRegistrationErrorMsg struct {
+	ClientRegistrationFailedMsg struct {
 		ClientID revent.ClientID
 		Reason   string
 	}
 )
 
-func (e ClientRegistrationErrorMsg) Error() string {
+func (e ClientRegistrationFailedMsg) Error() string {
 	if e.Reason == "" {
 		return fmt.Sprintf("client %q registration rejected", e.ClientID)
 	}
@@ -43,6 +43,6 @@ func (e ClientRegistrationErrorMsg) Error() string {
 	return fmt.Sprintf("client %q registration rejected: %s", e.ClientID, e.Reason)
 }
 
-func (c ClientRegistrationMsg) clientMessage()      {}
-func (c ClientRegisteredMsg) serverMessage()        {}
-func (c ClientRegistrationErrorMsg) serverMessage() {}
+func (c ClientRegistrationMsg) clientMessage()       {}
+func (c ClientRegisteredMsg) serverMessage()         {}
+func (c ClientRegistrationFailedMsg) serverMessage() {}

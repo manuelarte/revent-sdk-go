@@ -287,7 +287,13 @@ func (s *scenarioState) iSendAQueryRequest(ctx context.Context, table *godog.Tab
 	case string(testErrorQuery):
 		// For error query, handler returns output that fails marshaling
 		queryID := testErrorQuery
-		output, errQueryRequest := reventsdkgo.QueryRequest(requestCtx, s.state, requestID, queryID, &bddQueryInput{Value: "any"})
+		output, errQueryRequest := reventsdkgo.QueryRequest(
+			requestCtx,
+			s.state,
+			requestID,
+			queryID,
+			&bddQueryInput{Value: "any"},
+		)
 
 		s.queryErrByReqID[requestID] = errQueryRequest
 		if output != nil {
@@ -296,7 +302,13 @@ func (s *scenarioState) iSendAQueryRequest(ctx context.Context, table *godog.Tab
 	default:
 		// For standard test query
 		queryID := revent.Query[*bddQueryInput, *bddQueryOutput](queryIDRaw)
-		output, errQueryRequest := reventsdkgo.QueryRequest(requestCtx, s.state, requestID, queryID, &bddQueryInput{Value: "any"})
+		output, errQueryRequest := reventsdkgo.QueryRequest(
+			requestCtx,
+			s.state,
+			requestID,
+			queryID,
+			&bddQueryInput{Value: "any"},
+		)
 
 		s.queryErrByReqID[requestID] = errQueryRequest
 		if output != nil {
@@ -356,7 +368,13 @@ func (s *scenarioState) iSendAQueryRequestWithTheSameRequestID(
 	switch queryIDRaw {
 	case string(testInvalidResponseQueryClient):
 		queryID := testInvalidResponseQueryClient
-		output, errQueryRequest := reventsdkgo.QueryRequest(requestCtx, s.state, requestID, queryID, &bddQueryInput{Value: "any"})
+		output, errQueryRequest := reventsdkgo.QueryRequest(
+			requestCtx,
+			s.state,
+			requestID,
+			queryID,
+			&bddQueryInput{Value: "any"},
+		)
 
 		s.queryErrByReqID[requestID] = errQueryRequest
 		if output != nil {
@@ -364,7 +382,13 @@ func (s *scenarioState) iSendAQueryRequestWithTheSameRequestID(
 		}
 	case string(testErrorQuery):
 		queryID := testErrorQuery
-		output, errQueryRequest := reventsdkgo.QueryRequest(requestCtx, s.state, requestID, queryID, &bddQueryInput{Value: "any"})
+		output, errQueryRequest := reventsdkgo.QueryRequest(
+			requestCtx,
+			s.state,
+			requestID,
+			queryID,
+			&bddQueryInput{Value: "any"},
+		)
 
 		s.queryErrByReqID[requestID] = errQueryRequest
 		if output != nil {
@@ -372,7 +396,13 @@ func (s *scenarioState) iSendAQueryRequestWithTheSameRequestID(
 		}
 	default:
 		queryID := revent.Query[*bddQueryInput, *bddQueryOutput](queryIDRaw)
-		output, errQueryRequest := reventsdkgo.QueryRequest(requestCtx, s.state, requestID, queryID, &bddQueryInput{Value: "any"})
+		output, errQueryRequest := reventsdkgo.QueryRequest(
+			requestCtx,
+			s.state,
+			requestID,
+			queryID,
+			&bddQueryInput{Value: "any"},
+		)
 
 		s.queryErrByReqID[requestID] = errQueryRequest
 		if output != nil {
@@ -430,15 +460,15 @@ func (s *scenarioState) theQueryShouldFailWithQueryHandlerNotFound(
 		return ctx, errors.New("expected query to fail, got nil")
 	}
 
-	var requestedErr *actions.QueryRequestedError
+	var requestedErr *actions.QueryRequestedFailed
 	if !errors.As(queryErr, &requestedErr) {
-		return ctx, fmt.Errorf("expected QueryRequestedError, got: %w", queryErr)
+		return ctx, fmt.Errorf("expected QueryRequestedFailed, got: %w", queryErr)
 	}
 
-	if requestedErr.Reason != messages.QueryRequestedErrorReasonQueryHandlerNotFound {
+	if requestedErr.Reason != messages.QueryRequestedFailedReasonQueryHandlerNotFound {
 		return ctx, fmt.Errorf(
 			"expected query error reason %q, got %q",
-			messages.QueryRequestedErrorReasonQueryHandlerNotFound,
+			messages.QueryRequestedFailedReasonQueryHandlerNotFound,
 			requestedErr.Reason,
 		)
 	}
@@ -466,15 +496,15 @@ func (s *scenarioState) theQueryShouldFailWithUnmarshalError(
 		return ctx, errors.New("expected query to fail, got nil")
 	}
 
-	var requestedErr *actions.QueryRequestedError
+	var requestedErr *actions.QueryRequestedFailed
 	if !errors.As(queryErr, &requestedErr) {
-		return ctx, fmt.Errorf("expected QueryRequestedError, got: %w", queryErr)
+		return ctx, fmt.Errorf("expected QueryRequestedFailed, got: %w", queryErr)
 	}
 
-	if requestedErr.Reason != messages.QueryRequestedErrorReasonErrorHandling {
+	if requestedErr.Reason != messages.QueryRequestedFailedReasonErrorHandling {
 		return ctx, fmt.Errorf(
 			"expected query error reason %q, got %q",
-			messages.QueryRequestedErrorReasonErrorHandling,
+			messages.QueryRequestedFailedReasonErrorHandling,
 			requestedErr.Reason,
 		)
 	}
@@ -506,15 +536,15 @@ func (s *scenarioState) theQueryShouldFailWithRequestIDDuplicated(
 		return ctx, errors.New("expected query to fail, got nil")
 	}
 
-	var requestedErr *actions.QueryRequestedError
+	var requestedErr *actions.QueryRequestedFailed
 	if !errors.As(queryErr, &requestedErr) {
-		return ctx, fmt.Errorf("expected QueryRequestedError, got: %w", queryErr)
+		return ctx, fmt.Errorf("expected QueryRequestedFailed, got: %w", queryErr)
 	}
 
-	if requestedErr.Reason != messages.QueryRequestedErrorReasonRequestIDDuplicated {
+	if requestedErr.Reason != messages.QueryRequestedFailedReasonRequestIDDuplicated {
 		return ctx, fmt.Errorf(
 			"expected query error reason %q, got %q",
-			messages.QueryRequestedErrorReasonRequestIDDuplicated,
+			messages.QueryRequestedFailedReasonRequestIDDuplicated,
 			requestedErr.Reason,
 		)
 	}
@@ -522,7 +552,7 @@ func (s *scenarioState) theQueryShouldFailWithRequestIDDuplicated(
 	return ctx, nil
 }
 
-func (s *scenarioState) theQueryShouldFailWithQueryHandlingError(
+func (s *scenarioState) theQueryShouldFailWithQueryHandlingFailed(
 	ctx context.Context,
 	requestIDRaw string,
 ) (context.Context, error) {
@@ -542,13 +572,13 @@ func (s *scenarioState) theQueryShouldFailWithQueryHandlingError(
 		return ctx, errors.New("expected query to fail, got nil")
 	}
 
-	// QueryHandlingError can come as either a QueryRequestedError with a specific reason
+	// QueryHandlingFailed can come as either a QueryRequestedFailed with a specific reason
 	// or as a generic error if the server returns it in a different way
-	var requestedErr *actions.QueryRequestedError
+	var requestedErr *actions.QueryRequestedFailed
 	if errors.As(queryErr, &requestedErr) {
-		// If it's a QueryRequestedError, check for appropriate reasons
-		if requestedErr.Reason != messages.QueryRequestedErrorReasonErrorHandling &&
-			requestedErr.Reason != messages.QueryRequestedErrorReasonQueryTimedOut {
+		// If it's a QueryRequestedFailed, check for appropriate reasons
+		if requestedErr.Reason != messages.QueryRequestedFailedReasonErrorHandling &&
+			requestedErr.Reason != messages.QueryRequestedFailedReasonQueryTimedOut {
 			return ctx, fmt.Errorf(
 				"expected query error reason to indicate handling failure or timeout, got %q",
 				requestedErr.Reason,

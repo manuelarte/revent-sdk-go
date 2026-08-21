@@ -22,7 +22,7 @@ type (
 
 	ClientRegistrationResponse struct {
 		Msg *messages.ClientRegisteredMsg
-		Err *messages.ClientRegistrationErrorMsg
+		Err *messages.ClientRegistrationFailedMsg
 	}
 )
 
@@ -38,7 +38,7 @@ func NewClientRegistration(
 // Output:
 // It returns the output of the client registration response, that it could be:
 // - revent.ClientRegisteredMsg
-// - revent.ClientRegistrationErrorMsg
+// - revent.ClientRegistrationFailedMsg
 // Errors:
 // - error coming from trying to send the ClientRegistrationMsg.
 // - context error: if the context is canceled.
@@ -58,7 +58,7 @@ func (c *ClientRegistration) Do(
 		switch payload := msg.(type) {
 		case *messages.ClientRegisteredMsg:
 			return payload.ClientID == params.ClientID
-		case *messages.ClientRegistrationErrorMsg:
+		case *messages.ClientRegistrationFailedMsg:
 			return payload.ClientID == params.ClientID
 		default:
 			return false
@@ -86,7 +86,7 @@ func (c *ClientRegistration) Do(
 			return &ClientRegistrationResponse{
 				Msg: payload,
 			}, nil
-		case *messages.ClientRegistrationErrorMsg:
+		case *messages.ClientRegistrationFailedMsg:
 			return &ClientRegistrationResponse{
 				Err: payload,
 			}, nil

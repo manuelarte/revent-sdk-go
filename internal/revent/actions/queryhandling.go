@@ -24,7 +24,7 @@ type (
 
 	QueryHandlingResponse struct {
 		Msg *messages.QueryResponseRawMsg
-		Err *messages.QueryHandlingErrorMsg
+		Err *messages.QueryHandlingFailedMsg
 	}
 )
 
@@ -42,7 +42,7 @@ func NewQueryHandling(
 
 func (qh *QueryHandling) Do(ctx context.Context, qhp QueryHandlingParams) (*QueryHandlingResponse, error) {
 	if qhp.Msg == nil || qh.getHandler == nil || qh.sender == nil {
-		msg := &messages.QueryHandlingErrorMsg{
+		msg := &messages.QueryHandlingFailedMsg{
 			RequestID: qhp.Msg.RequestID,
 			Reason:    "Unknown",
 			Details:   "nil message, handler, or sender",
@@ -60,7 +60,7 @@ func (qh *QueryHandling) Do(ctx context.Context, qhp QueryHandlingParams) (*Quer
 
 	handler, ok := qh.getHandler(qhp.Msg.QueryID)
 	if !ok {
-		msg := &messages.QueryHandlingErrorMsg{
+		msg := &messages.QueryHandlingFailedMsg{
 			RequestID: qhp.Msg.RequestID,
 			Reason:    "Unknown",
 			Details:   "handler not found",
@@ -78,9 +78,9 @@ func (qh *QueryHandling) Do(ctx context.Context, qhp QueryHandlingParams) (*Quer
 
 	responseBytes, err := handler(ctx, qhp.Msg.Parameters)
 	if err != nil {
-		msg := &messages.QueryHandlingErrorMsg{
+		msg := &messages.QueryHandlingFailedMsg{
 			RequestID: qhp.Msg.RequestID,
-			Reason:    string(messages.QueryRequestedErrorReasonErrorHandling),
+			Reason:    string(messages.QueryRequestedFailedReasonErrorHandling),
 			Details:   err.Error(),
 		}
 

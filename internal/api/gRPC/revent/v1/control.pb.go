@@ -38,7 +38,7 @@ type ClientToServerMessage struct {
 	//	*ClientToServerMessage_RegisterClient
 	//	*ClientToServerMessage_QueryRequest
 	//	*ClientToServerMessage_QueryResponse
-	//	*ClientToServerMessage_QueryHandlingError
+	//	*ClientToServerMessage_QueryHandlingFailed
 	//	*ClientToServerMessage_RegisterSourceEvent
 	//	*ClientToServerMessage_Heartbeat
 	Payload       isClientToServerMessage_Payload `protobuf_oneof:"payload"`
@@ -110,10 +110,10 @@ func (x *ClientToServerMessage) GetQueryResponse() *QueryResponse {
 	return nil
 }
 
-func (x *ClientToServerMessage) GetQueryHandlingError() *QueryHandlingError {
+func (x *ClientToServerMessage) GetQueryHandlingFailed() *QueryHandlingFailed {
 	if x != nil {
-		if x, ok := x.Payload.(*ClientToServerMessage_QueryHandlingError); ok {
-			return x.QueryHandlingError
+		if x, ok := x.Payload.(*ClientToServerMessage_QueryHandlingFailed); ok {
+			return x.QueryHandlingFailed
 		}
 	}
 	return nil
@@ -156,9 +156,9 @@ type ClientToServerMessage_QueryResponse struct {
 	QueryResponse *QueryResponse `protobuf:"bytes,3,opt,name=query_response,json=queryResponse,proto3,oneof"`
 }
 
-type ClientToServerMessage_QueryHandlingError struct {
-	// QueryHandlingError indicates that there was a problem handling the query requested.
-	QueryHandlingError *QueryHandlingError `protobuf:"bytes,4,opt,name=query_handling_error,json=queryHandlingError,proto3,oneof"`
+type ClientToServerMessage_QueryHandlingFailed struct {
+	// QueryHandlingFailed indicates that there was a problem handling the query requested.
+	QueryHandlingFailed *QueryHandlingFailed `protobuf:"bytes,4,opt,name=query_handling_failed,json=queryHandlingFailed,proto3,oneof"`
 }
 
 type ClientToServerMessage_RegisterSourceEvent struct {
@@ -177,7 +177,7 @@ func (*ClientToServerMessage_QueryRequest) isClientToServerMessage_Payload() {}
 
 func (*ClientToServerMessage_QueryResponse) isClientToServerMessage_Payload() {}
 
-func (*ClientToServerMessage_QueryHandlingError) isClientToServerMessage_Payload() {}
+func (*ClientToServerMessage_QueryHandlingFailed) isClientToServerMessage_Payload() {}
 
 func (*ClientToServerMessage_RegisterSourceEvent) isClientToServerMessage_Payload() {}
 
@@ -287,8 +287,8 @@ type ServerToClientMessage struct {
 	//	*ServerToClientMessage_QueryRequested
 	//	*ServerToClientMessage_QueryResponded
 	//	*ServerToClientMessage_Heartbeat
-	//	*ServerToClientMessage_ClientRegistrationError
-	//	*ServerToClientMessage_QueryRequestedError
+	//	*ServerToClientMessage_ClientRegistrationFailed
+	//	*ServerToClientMessage_QueryRequestedFailed
 	//	*ServerToClientMessage_SourceEventRegistered
 	//	*ServerToClientMessage_SourceEvent
 	Payload       isServerToClientMessage_Payload `protobuf_oneof:"payload"`
@@ -369,19 +369,19 @@ func (x *ServerToClientMessage) GetHeartbeat() *Heartbeat {
 	return nil
 }
 
-func (x *ServerToClientMessage) GetClientRegistrationError() *ClientRegistrationError {
+func (x *ServerToClientMessage) GetClientRegistrationFailed() *ClientRegistrationFailed {
 	if x != nil {
-		if x, ok := x.Payload.(*ServerToClientMessage_ClientRegistrationError); ok {
-			return x.ClientRegistrationError
+		if x, ok := x.Payload.(*ServerToClientMessage_ClientRegistrationFailed); ok {
+			return x.ClientRegistrationFailed
 		}
 	}
 	return nil
 }
 
-func (x *ServerToClientMessage) GetQueryRequestedError() *QueryRequestedError {
+func (x *ServerToClientMessage) GetQueryRequestedFailed() *QueryRequestedFailed {
 	if x != nil {
-		if x, ok := x.Payload.(*ServerToClientMessage_QueryRequestedError); ok {
-			return x.QueryRequestedError
+		if x, ok := x.Payload.(*ServerToClientMessage_QueryRequestedFailed); ok {
+			return x.QueryRequestedFailed
 		}
 	}
 	return nil
@@ -429,14 +429,14 @@ type ServerToClientMessage_Heartbeat struct {
 	Heartbeat *Heartbeat `protobuf:"bytes,4,opt,name=heartbeat,proto3,oneof"`
 }
 
-type ServerToClientMessage_ClientRegistrationError struct {
+type ServerToClientMessage_ClientRegistrationFailed struct {
 	// Indicates that the client could not get registered.
-	ClientRegistrationError *ClientRegistrationError `protobuf:"bytes,5,opt,name=client_registration_error,json=clientRegistrationError,proto3,oneof"`
+	ClientRegistrationFailed *ClientRegistrationFailed `protobuf:"bytes,5,opt,name=client_registration_failed,json=clientRegistrationFailed,proto3,oneof"`
 }
 
-type ServerToClientMessage_QueryRequestedError struct {
+type ServerToClientMessage_QueryRequestedFailed struct {
 	// Indicates that there was a problem handling the query requested.
-	QueryRequestedError *QueryRequestedError `protobuf:"bytes,6,opt,name=query_requested_error,json=queryRequestedError,proto3,oneof"`
+	QueryRequestedFailed *QueryRequestedFailed `protobuf:"bytes,6,opt,name=query_requested_failed,json=queryRequestedFailed,proto3,oneof"`
 }
 
 type ServerToClientMessage_SourceEventRegistered struct {
@@ -457,9 +457,9 @@ func (*ServerToClientMessage_QueryResponded) isServerToClientMessage_Payload() {
 
 func (*ServerToClientMessage_Heartbeat) isServerToClientMessage_Payload() {}
 
-func (*ServerToClientMessage_ClientRegistrationError) isServerToClientMessage_Payload() {}
+func (*ServerToClientMessage_ClientRegistrationFailed) isServerToClientMessage_Payload() {}
 
-func (*ServerToClientMessage_QueryRequestedError) isServerToClientMessage_Payload() {}
+func (*ServerToClientMessage_QueryRequestedFailed) isServerToClientMessage_Payload() {}
 
 func (*ServerToClientMessage_SourceEventRegistered) isServerToClientMessage_Payload() {}
 
@@ -513,8 +513,8 @@ func (x *ClientRegistered) GetClientId() string {
 }
 
 // *
-// ClientRegistrationError indicates that the client could not get registered.
-type ClientRegistrationError struct {
+// ClientRegistrationFailed indicates that the client could not get registered.
+type ClientRegistrationFailed struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Identifier of the client that is not valid.
 	ClientId string `protobuf:"bytes,1,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
@@ -524,20 +524,20 @@ type ClientRegistrationError struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ClientRegistrationError) Reset() {
-	*x = ClientRegistrationError{}
+func (x *ClientRegistrationFailed) Reset() {
+	*x = ClientRegistrationFailed{}
 	mi := &file_revent_v1_control_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ClientRegistrationError) String() string {
+func (x *ClientRegistrationFailed) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ClientRegistrationError) ProtoMessage() {}
+func (*ClientRegistrationFailed) ProtoMessage() {}
 
-func (x *ClientRegistrationError) ProtoReflect() protoreflect.Message {
+func (x *ClientRegistrationFailed) ProtoReflect() protoreflect.Message {
 	mi := &file_revent_v1_control_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -549,19 +549,19 @@ func (x *ClientRegistrationError) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ClientRegistrationError.ProtoReflect.Descriptor instead.
-func (*ClientRegistrationError) Descriptor() ([]byte, []int) {
+// Deprecated: Use ClientRegistrationFailed.ProtoReflect.Descriptor instead.
+func (*ClientRegistrationFailed) Descriptor() ([]byte, []int) {
 	return file_revent_v1_control_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *ClientRegistrationError) GetClientId() string {
+func (x *ClientRegistrationFailed) GetClientId() string {
 	if x != nil {
 		return x.ClientId
 	}
 	return ""
 }
 
-func (x *ClientRegistrationError) GetReason() string {
+func (x *ClientRegistrationFailed) GetReason() string {
 	if x != nil {
 		return x.Reason
 	}
@@ -572,32 +572,32 @@ var File_revent_v1_control_proto protoreflect.FileDescriptor
 
 const file_revent_v1_control_proto_rawDesc = "" +
 	"\n" +
-	"\x17revent/v1/control.proto\x12\trevent.v1\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1erevent/v1/query_messages.proto\x1a\x1erevent/v1/event_messages.proto\"\xca\x03\n" +
+	"\x17revent/v1/control.proto\x12\trevent.v1\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1erevent/v1/query_messages.proto\x1a\x1erevent/v1/event_messages.proto\"\xcd\x03\n" +
 	"\x15ClientToServerMessage\x12D\n" +
 	"\x0fregister_client\x18\x01 \x01(\v2\x19.revent.v1.RegisterClientH\x00R\x0eregisterClient\x12>\n" +
 	"\rquery_request\x18\x02 \x01(\v2\x17.revent.v1.QueryRequestH\x00R\fqueryRequest\x12A\n" +
-	"\x0equery_response\x18\x03 \x01(\v2\x18.revent.v1.QueryResponseH\x00R\rqueryResponse\x12Q\n" +
-	"\x14query_handling_error\x18\x04 \x01(\v2\x1d.revent.v1.QueryHandlingErrorH\x00R\x12queryHandlingError\x12T\n" +
+	"\x0equery_response\x18\x03 \x01(\v2\x18.revent.v1.QueryResponseH\x00R\rqueryResponse\x12T\n" +
+	"\x15query_handling_failed\x18\x04 \x01(\v2\x1e.revent.v1.QueryHandlingFailedH\x00R\x13queryHandlingFailed\x12T\n" +
 	"\x15register_source_event\x18\x05 \x01(\v2\x1e.revent.v1.RegisterSourceEventH\x00R\x13registerSourceEvent\x124\n" +
 	"\theartbeat\x18\x06 \x01(\v2\x14.revent.v1.HeartbeatH\x00R\theartbeatB\t\n" +
 	"\apayload\"^\n" +
 	"\x0eRegisterClient\x12 \n" +
 	"\tclient_id\x18\x01 \x01(\tB\x03\xe0A\x02R\bclientId\x12*\n" +
 	"\x0equery_handlers\x18\x02 \x03(\tB\x03\xe0A\x01R\rqueryHandlers\"\v\n" +
-	"\tHeartbeat\"\x81\x05\n" +
+	"\tHeartbeat\"\x87\x05\n" +
 	"\x15ServerToClientMessage\x12J\n" +
 	"\x11client_registered\x18\x01 \x01(\v2\x1b.revent.v1.ClientRegisteredH\x00R\x10clientRegistered\x12D\n" +
 	"\x0fquery_requested\x18\x02 \x01(\v2\x19.revent.v1.QueryRequestedH\x00R\x0equeryRequested\x12D\n" +
 	"\x0fquery_responded\x18\x03 \x01(\v2\x19.revent.v1.QueryRespondedH\x00R\x0equeryResponded\x124\n" +
-	"\theartbeat\x18\x04 \x01(\v2\x14.revent.v1.HeartbeatH\x00R\theartbeat\x12`\n" +
-	"\x19client_registration_error\x18\x05 \x01(\v2\".revent.v1.ClientRegistrationErrorH\x00R\x17clientRegistrationError\x12T\n" +
-	"\x15query_requested_error\x18\x06 \x01(\v2\x1e.revent.v1.QueryRequestedErrorH\x00R\x13queryRequestedError\x12Z\n" +
+	"\theartbeat\x18\x04 \x01(\v2\x14.revent.v1.HeartbeatH\x00R\theartbeat\x12c\n" +
+	"\x1aclient_registration_failed\x18\x05 \x01(\v2#.revent.v1.ClientRegistrationFailedH\x00R\x18clientRegistrationFailed\x12W\n" +
+	"\x16query_requested_failed\x18\x06 \x01(\v2\x1f.revent.v1.QueryRequestedFailedH\x00R\x14queryRequestedFailed\x12Z\n" +
 	"\x17source_event_registered\x18\a \x01(\v2 .revent.v1.SourceEventRegisteredH\x00R\x15sourceEventRegistered\x12;\n" +
 	"\fsource_event\x18\b \x01(\v2\x16.revent.v1.SourceEventH\x00R\vsourceEventB\t\n" +
 	"\apayload\"/\n" +
 	"\x10ClientRegistered\x12\x1b\n" +
-	"\tclient_id\x18\x01 \x01(\tR\bclientId\"N\n" +
-	"\x17ClientRegistrationError\x12\x1b\n" +
+	"\tclient_id\x18\x01 \x01(\tR\bclientId\"O\n" +
+	"\x18ClientRegistrationFailed\x12\x1b\n" +
 	"\tclient_id\x18\x01 \x01(\tR\bclientId\x12\x16\n" +
 	"\x06reason\x18\x02 \x01(\tR\x06reason2b\n" +
 	"\aControl\x12W\n" +
@@ -619,35 +619,35 @@ func file_revent_v1_control_proto_rawDescGZIP() []byte {
 
 var file_revent_v1_control_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_revent_v1_control_proto_goTypes = []any{
-	(*ClientToServerMessage)(nil),   // 0: revent.v1.ClientToServerMessage
-	(*RegisterClient)(nil),          // 1: revent.v1.RegisterClient
-	(*Heartbeat)(nil),               // 2: revent.v1.Heartbeat
-	(*ServerToClientMessage)(nil),   // 3: revent.v1.ServerToClientMessage
-	(*ClientRegistered)(nil),        // 4: revent.v1.ClientRegistered
-	(*ClientRegistrationError)(nil), // 5: revent.v1.ClientRegistrationError
-	(*QueryRequest)(nil),            // 6: revent.v1.QueryRequest
-	(*QueryResponse)(nil),           // 7: revent.v1.QueryResponse
-	(*QueryHandlingError)(nil),      // 8: revent.v1.QueryHandlingError
-	(*RegisterSourceEvent)(nil),     // 9: revent.v1.RegisterSourceEvent
-	(*QueryRequested)(nil),          // 10: revent.v1.QueryRequested
-	(*QueryResponded)(nil),          // 11: revent.v1.QueryResponded
-	(*QueryRequestedError)(nil),     // 12: revent.v1.QueryRequestedError
-	(*SourceEventRegistered)(nil),   // 13: revent.v1.SourceEventRegistered
-	(*SourceEvent)(nil),             // 14: revent.v1.SourceEvent
+	(*ClientToServerMessage)(nil),    // 0: revent.v1.ClientToServerMessage
+	(*RegisterClient)(nil),           // 1: revent.v1.RegisterClient
+	(*Heartbeat)(nil),                // 2: revent.v1.Heartbeat
+	(*ServerToClientMessage)(nil),    // 3: revent.v1.ServerToClientMessage
+	(*ClientRegistered)(nil),         // 4: revent.v1.ClientRegistered
+	(*ClientRegistrationFailed)(nil), // 5: revent.v1.ClientRegistrationFailed
+	(*QueryRequest)(nil),             // 6: revent.v1.QueryRequest
+	(*QueryResponse)(nil),            // 7: revent.v1.QueryResponse
+	(*QueryHandlingFailed)(nil),      // 8: revent.v1.QueryHandlingFailed
+	(*RegisterSourceEvent)(nil),      // 9: revent.v1.RegisterSourceEvent
+	(*QueryRequested)(nil),           // 10: revent.v1.QueryRequested
+	(*QueryResponded)(nil),           // 11: revent.v1.QueryResponded
+	(*QueryRequestedFailed)(nil),     // 12: revent.v1.QueryRequestedFailed
+	(*SourceEventRegistered)(nil),    // 13: revent.v1.SourceEventRegistered
+	(*SourceEvent)(nil),              // 14: revent.v1.SourceEvent
 }
 var file_revent_v1_control_proto_depIdxs = []int32{
 	1,  // 0: revent.v1.ClientToServerMessage.register_client:type_name -> revent.v1.RegisterClient
 	6,  // 1: revent.v1.ClientToServerMessage.query_request:type_name -> revent.v1.QueryRequest
 	7,  // 2: revent.v1.ClientToServerMessage.query_response:type_name -> revent.v1.QueryResponse
-	8,  // 3: revent.v1.ClientToServerMessage.query_handling_error:type_name -> revent.v1.QueryHandlingError
+	8,  // 3: revent.v1.ClientToServerMessage.query_handling_failed:type_name -> revent.v1.QueryHandlingFailed
 	9,  // 4: revent.v1.ClientToServerMessage.register_source_event:type_name -> revent.v1.RegisterSourceEvent
 	2,  // 5: revent.v1.ClientToServerMessage.heartbeat:type_name -> revent.v1.Heartbeat
 	4,  // 6: revent.v1.ServerToClientMessage.client_registered:type_name -> revent.v1.ClientRegistered
 	10, // 7: revent.v1.ServerToClientMessage.query_requested:type_name -> revent.v1.QueryRequested
 	11, // 8: revent.v1.ServerToClientMessage.query_responded:type_name -> revent.v1.QueryResponded
 	2,  // 9: revent.v1.ServerToClientMessage.heartbeat:type_name -> revent.v1.Heartbeat
-	5,  // 10: revent.v1.ServerToClientMessage.client_registration_error:type_name -> revent.v1.ClientRegistrationError
-	12, // 11: revent.v1.ServerToClientMessage.query_requested_error:type_name -> revent.v1.QueryRequestedError
+	5,  // 10: revent.v1.ServerToClientMessage.client_registration_failed:type_name -> revent.v1.ClientRegistrationFailed
+	12, // 11: revent.v1.ServerToClientMessage.query_requested_failed:type_name -> revent.v1.QueryRequestedFailed
 	13, // 12: revent.v1.ServerToClientMessage.source_event_registered:type_name -> revent.v1.SourceEventRegistered
 	14, // 13: revent.v1.ServerToClientMessage.source_event:type_name -> revent.v1.SourceEvent
 	0,  // 14: revent.v1.Control.OpenSession:input_type -> revent.v1.ClientToServerMessage
@@ -670,7 +670,7 @@ func file_revent_v1_control_proto_init() {
 		(*ClientToServerMessage_RegisterClient)(nil),
 		(*ClientToServerMessage_QueryRequest)(nil),
 		(*ClientToServerMessage_QueryResponse)(nil),
-		(*ClientToServerMessage_QueryHandlingError)(nil),
+		(*ClientToServerMessage_QueryHandlingFailed)(nil),
 		(*ClientToServerMessage_RegisterSourceEvent)(nil),
 		(*ClientToServerMessage_Heartbeat)(nil),
 	}
@@ -679,8 +679,8 @@ func file_revent_v1_control_proto_init() {
 		(*ServerToClientMessage_QueryRequested)(nil),
 		(*ServerToClientMessage_QueryResponded)(nil),
 		(*ServerToClientMessage_Heartbeat)(nil),
-		(*ServerToClientMessage_ClientRegistrationError)(nil),
-		(*ServerToClientMessage_QueryRequestedError)(nil),
+		(*ServerToClientMessage_ClientRegistrationFailed)(nil),
+		(*ServerToClientMessage_QueryRequestedFailed)(nil),
 		(*ServerToClientMessage_SourceEventRegistered)(nil),
 		(*ServerToClientMessage_SourceEvent)(nil),
 	}

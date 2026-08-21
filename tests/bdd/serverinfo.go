@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	reventImage = "ghcr.io/manuelarte/revent:0.0.1-fix-adding-queryhandlingerror-message-5e822a6-snapshot"
+	reventImage = "ghcr.io/manuelarte/revent:0.0.1-fix-adding-QueryHandlingFailed-message-5e822a6-snapshot"
 )
 
 type serverInfo struct {
