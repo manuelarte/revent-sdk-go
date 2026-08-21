@@ -60,7 +60,7 @@ func NewQueryRequisition[I revent.QueryRequestParameters, O revent.QueryResponse
 // Output:
 // It returns the output of the query response, that it could be:
 // - revent.QueryResponse
-// - revent.QueryRequestedFailedMsg
+// - revent.QueryRequestedFailed
 // Errors:
 // - error coming from trying to send the QueryRequest.
 // - context error: if the context is canceled.
