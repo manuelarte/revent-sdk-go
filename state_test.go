@@ -161,6 +161,51 @@ func (m *mockTxRx) SessionEvent() <-chan txrx.SessionEvent {
 	return m.sessionEvent
 }
 
+func TestServerManagerSend(t *testing.T) {
+	s, err := NewState(DefaultConfig())
+	if err != nil {
+		t.Fatalf("NewState() error = %v", err)
+	}
+
+	// Send when not started should return ErrStreamClosed
+	err = s.Send(&messages.ClientRegistrationMsg{ClientID: "test"})
+	if !errors.Is(err, txrx.ErrStreamClosed) {
+		t.Errorf("Send() error = %v, want %v", err, txrx.ErrStreamClosed)
+	}
+
+	mock := newMockTxRx()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	startErrCh := make(chan error, 1)
+	go func() {
+		startErrCh <- s.start(ctx, func() (txrx.TxRx, error) {
+			return mock, nil
+		})
+	}()
+
+	// Allow start goroutine to initialize
+	time.Sleep(50 * time.Millisecond)
+
+	msgToSend := &messages.ClientRegistrationMsg{ClientID: "test-client"}
+	err = s.Send(msgToSend)
+	if err != nil {
+		t.Errorf("Send() error = %v, want nil", err)
+	}
+
+	select {
+	case sent := <-mock.sentMsgs:
+		if sent != msgToSend {
+			t.Errorf("Send() sent = %+v, want %+v", sent, msgToSend)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for message to be sent")
+	}
+
+	cancel()
+	<-startErrCh
+}
+
 func TestQueryHandlingAndResponding(t *testing.T) {
 	s, err := NewState(DefaultConfig())
 	if err != nil {

@@ -16,7 +16,11 @@ import (
 	"github.com/manuelarte/revent-sdk-go/revent"
 )
 
-var _ internal.SubscriptionManager = new(ServerManager)
+var (
+	_ internal.SubscriptionManager = new(ServerManager)
+	_ actions.Sender              = new(ServerManager)
+	_ actions.SendAndSubscribe    = new(ServerManager)
+)
 
 const (
 	maxConcurrentQueryHandling = 64
@@ -32,7 +36,9 @@ type (
 		clientID revent.ClientID
 
 		once sync.Once
-		txRx txrx.TxRx
+
+		muTxRx sync.RWMutex
+		txRx   txrx.TxRx
 
 		queryHandling *actions.QueryHandling
 		querySlots    chan struct{}
@@ -64,6 +70,19 @@ func NewState(cfg Config) (*ServerManager, error) {
 		stateChan:     make(chan txrx.ConnectionState, 1),
 		querySlots:    make(chan struct{}, maxConcurrentQueryHandling),
 	}, nil
+}
+
+// Send sends a message to the server via the active transport.
+func (s *ServerManager) Send(msg messages.ClientMsg) error {
+	s.muTxRx.RLock()
+	t := s.txRx
+	s.muTxRx.RUnlock()
+
+	if t == nil {
+		return txrx.ErrStreamClosed
+	}
+
+	return t.Send(msg)
 }
 
 func (s *ServerManager) Subscribe(
@@ -100,8 +119,11 @@ func (s *ServerManager) start(
 		return fmt.Errorf("failed to create gRPC TxRx: %w", err)
 	}
 
+	s.muTxRx.Lock()
 	s.txRx = txRx
-	s.queryHandling = actions.NewQueryHandling(s.logger, s.txRx, s.queryHandler)
+	s.muTxRx.Unlock()
+
+	s.queryHandling = actions.NewQueryHandling(s.logger, s, s.queryHandler)
 	incoming := txRx.Incoming()
 	txRxSessionChan := txRx.SessionEvent()
 
@@ -219,7 +241,7 @@ func (s *ServerManager) dispatchServerMessage(msg messages.ServerMsg) {
 			continue
 		}
 
-		// Never block the receive loop on slow subscribers.
+		// Never block the receiver loop on slow subscribers.
 		select {
 		case sub.ch <- msg:
 		default:
