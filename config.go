@@ -1,22 +1,25 @@
 package revent_sdk_go
 
 import (
-	"errors"
 	"fmt"
 	"os"
+
+	"github.com/manuelarte/revent-sdk-go/internal/txrx"
+	"github.com/manuelarte/revent-sdk-go/logger"
+	"github.com/manuelarte/revent-sdk-go/revent"
 )
 
-//go:structinit
-type Config struct {
-	// ClientID to be used to register in R-Event.
-	ClientID ClientID
-	// ServerURL R-Event server url.
-	ServerURL string
-	// ServerGRPCPort R-Event gRPC port.
-	ServerGRPCPort int
-	// ServerRestPort R-Event REST port.
-	ServerRestPort int
-}
+type (
+	//go:structinit
+	Config struct {
+		// ClientID to be used to register in R-Event.
+		ClientID revent.ClientID
+		// logger interface
+		Logger logger.ILogger
+		// gRPC config
+		GRPCCfg txrx.GrpcConfig
+	}
+)
 
 // DefaultConfig returns a default configuration.
 func DefaultConfig() Config {
@@ -26,15 +29,10 @@ func DefaultConfig() Config {
 	}
 
 	return Config{
-		ClientID:       ClientID(hostname),
-		ServerURL:      "http://localhost",
-		ServerGRPCPort: 10000,
-		ServerRestPort: 10001,
+		ClientID: revent.ClientID(hostname),
+		Logger:   &logger.EmptyLogger{},
+		GRPCCfg:  txrx.DefaultGrpcConfig(),
 	}
-}
-
-func (c Config) GetGRPCAddress() string {
-	return fmt.Sprintf("%s:%d", c.ServerURL, c.ServerGRPCPort)
 }
 
 func (c Config) Validate() error {
@@ -42,16 +40,8 @@ func (c Config) Validate() error {
 		return fmt.Errorf("invalid ClientID: %w", err)
 	}
 
-	if c.ServerURL == "" {
-		return errors.New("server URL is required")
-	}
-
-	if c.ServerGRPCPort <= 0 {
-		return errors.New("server gRPC port is required")
-	}
-
-	if c.ServerRestPort <= 0 {
-		return errors.New("server REST port is required")
+	if err := c.GRPCCfg.Validate(); err != nil {
+		return fmt.Errorf("invalid GRPCCfg: %w", err)
 	}
 
 	return nil

@@ -7,7 +7,13 @@ lint: fmt
 	./custom-gcl run --fix ./...
 
 fmt:
+	buf generate
 	golangci-lint fmt
 
 test:
-	gotestsum ./...
+	gotestsum $(shell go list ./... | grep -v '/tests/bdd')
+	@$(MAKE) test-bdd
+
+test-bdd:
+	gotestsum ./tests/bdd
+

@@ -13,7 +13,8 @@ formatters:
         - pattern: "interface{}"
           replacement: "any"
     gofumpt:
-      extra-rules: true
+      extra:
+        group-params: true
     gci:
       sections:
         - standard
@@ -28,6 +29,7 @@ linters:
     - err113  # This leads to lots of unnecessary allocations and boilerplate.
     - errchkjson  # No json.
     - exhaustruct  # If applicable, to be checked in code reviews.
+    - exhaustruct_v5 # If applicable, to be checked in code reviews.
     - forcetypeassert  # Used in a different linter
     - ginkgolinter # Related to Ginkgo.
     - goheader  # No need of copyright headers.
@@ -40,7 +42,6 @@ linters:
     - noinlineerr # I prefer inline errors.
     - paralleltest  # We can't test in parallel.
     - promlinter # Related to prometheus.
-    - protogetter # Related to protocol buffer.
     - rowserrcheck # Related to SQL.
     - spancheck # Related to OpenTelemetry.
     - sqlclosecheck # Related to SQL.
@@ -53,6 +54,14 @@ linters:
     - zerologlint  # Not using zerolog.
 
   settings:
+    #keep-sorted start
+    custom:
+      testcomments:
+        type: module
+        description: lint that follows standards described in TestComments.
+      structinit:
+        type: module
+        description: check struct's field initialization order matches struct's field declaration.
     cyclop:
       max-complexity: 30
       package-average: 10
@@ -98,6 +107,8 @@ linters:
       default-signifies-exhaustive: false
     gocognit:
       min-complexity: 20
+    goconst:
+      ignore-string-values: "localhost"
     gocritic:
       settings:
         captLocal:
@@ -118,6 +129,8 @@ linters:
       skip-single-param: true
     mnd:
       ignored-numbers:
+        - "2"
+        - "6"
         - "10000"
         - "10001"
       ignored-functions:
@@ -156,6 +169,7 @@ linters:
       align: false
     usetesting:
       os-temp-dir: true
+    #keep-sorted end
 
   exclusions:
     presets:
